@@ -5,7 +5,7 @@
 # LICENSE:  MIT
 # DATE:     2022-11-17
 # UPDATED: 
-# tags: achievement, positivity trend, trends in treatment, iit trend
+# tags: achievement + adjusted achievement, positivity trends, trends in treatment, iit trend
 
 # DEPENDENCIES -----------------------------------------------------------------
   
@@ -17,6 +17,8 @@
   library(stringr)
   library(patchwork)
   library(ggtext)
+  library(tidytext)
+  library(cowplot)
 
 # GLOBAL VARIABLES -------------------------------------------------------------
   
@@ -25,14 +27,22 @@
 # IMPORT -----------------------------------------------------------------------
   
   path <- "MER_Structured_Datasets_OU_IM_FY20-23"
+  path_psnu <- "Genie_PSNU_IM_South_Sudan_Daily_2022-11-15"
   
   df <- si_path() %>%
     return_latest(path) %>%
     read_msd()
+  
+  df_psnu <- si_path() %>%
+    return_latest(path_psnu) %>%
+    read_msd()
     
   df_filt <- df %>%
-    filter(country %in% c("South Sudan"), 
+    filter(country == "South Sudan", 
            fiscal_year %in% c("2021", "2022"))
+  
+  df_filt_psnu <- df_psnu %>%
+    filter(fiscal_year %in% c("2021", "2022"))
   
   # metadata
   si_path() %>% 
@@ -48,101 +58,129 @@
   # Q: how do we want to characterize any "unknown age" data?
   # (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered == "Unknown Age")
   
-  # TX_CURR achievement 
+  # TX_CURR achievement (Cascade)
   # re-work code to show quarterly OU level achievement using SIEI achievement 
   # color scheme, see slide 43, 147 in data viz library
   
-  # df_tx <- df_filt %>%
-  #   filter(
-  #     indicator == "TX_CURR",
-  #     funding_agency != "Dedup",
-  #     (standardizeddisaggregate == "Age/Sex/HIVStatus" & is.na(ageasentered)) | 
-  #       (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
-  #       (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults) |
-  #       (standardizeddisaggregate == "Total Numerator")) %>%
-  #   mutate(type = case_when(
-  #     standardizeddisaggregate == "Total Numerator" & 
-  #       is.na(ageasentered)~ "Total", 
-  #     standardizeddisaggregate == "Age/Sex/HIVStatus" & 
-  #       ageasentered %in% peds ~ "Children", 
-  #     standardizeddisaggregate == "Age/Sex/HIVStatus" & 
-  #       ageasentered %in% adults ~ "Adults", 
-  #     standardizeddisaggregate == "Age/Sex/HIVStatus" & 
-  #       ageasentered == "Unknown Age" ~ "Unknown")) %>%
-  #   group_by(country, fiscal_year, indicator, type) %>%
-  #   summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
-  #             .groups = "drop") %>%
-  #   reshape_msd("quarters") %>%
-  #   select(-results_cumulative) %>%
-  #   arrange(type, period)
-  # 
-  # df_tx <- df_tx %>%
-  #   mutate(
-  #     growth_rate_req =
-  #       case_when(period == metadata$curr_pd ~
-  #                   ((targets / results)^(1 / (4 - metadata$curr_qtr))) - 1)) %>%
-  #   group_by(type) %>%
-  #   fill(growth_rate_req, .direction = "updown") %>%
-  #   mutate(
-  #     growth_rate = (results / lag(results, order_by = period)) - 1,
-  #     growth_rate = na_if(growth_rate, Inf)) %>%
-  #   ungroup() %>%
-  #   mutate(
-  #     geo_gr_lab = case_when(
-  #       is.infinite(growth_rate_req) ~ glue("{type}"),
-  #       growth_rate_req < 0 ~ glue("{type}\nTarget achieved"),
-  #       growth_rate_req < .1 ~ glue("{type} ({percent(growth_rate_req, 1)})"),
-  #       TRUE ~ glue("{type} ({percent(growth_rate_req, 1)})")),
-  #     gr_req_lab = case_when(fiscal_year == metadata$curr_fy ~ percent(growth_rate_req, 1)),
-  #     gr_label_position = results + 10000,
-  #     disp_targets = case_when(fiscal_year == metadata$curr_fy ~ targets))
-  # 
-  # df_focus <- df_tx %>%
-  #   filter(period == metadata$curr_pd, 
-  #          growth_rate_req == max(growth_rate_req)) %>%
-  #   select(type) %>%
-  #   pull()
-  # 
-  # pd <- df_tx %>%
-  #   filter(period == metadata$curr_pd) %>%
-  #   select(period) %>%
-  #   distinct() %>%
-  #   pull()
-  # 
-  # df_tx %>%
-  #   filter(fiscal_year == metadata$curr_fy) %>%
-  #   mutate(period_type = glue("{period}_{type}")) %>%
-  #   ggplot(aes(x = period)) +
-  #   geom_col(aes(y = results, fill = type),
-  #            alpha = .55,
-  #            position = position_dodge(width = -.75)) +
-  #   geom_hline(aes(yintercept = disp_targets, color = type), 
-  #              linetype = "dashed") +
-  #   facet_wrap(~fct_reorder2(geo_gr_lab, fiscal_year, targets), scales = "free_y", 
-  #              nrow = 1) +
-  #   scale_y_continuous(limits = c(0, 65000), 
-  #                      label = label_number(scale_cut = cut_short_scale())) +
-  #   scale_x_discrete(breaks = pd) +
-  #   scale_fill_manual(values = c("Adults" = usaid_medblue,
-  #                                "Children" = usaid_lightblue,
-  #                                "Total" = usaid_blue)) +
-  #   scale_color_manual(values = c("Adults" = usaid_medblue,
-  #                                 "Children" = usaid_lightblue,
-  #                                 "Total" = usaid_blue)) +
-  #   coord_flip() +
-  #   labs(
-  #     x = NULL, y = NULL,
-  #     title = glue("{df_focus} Require Greatest Effort To Meet Quarterly Treatment Achievement Targets") %>% toupper(),
-  #     subtitle = "Growth rate required (%) to meet TX_CURR targets for the current period",
-  #     caption = glue("{metadata$caption} | US Agency for International Development")) +
-  #   si_style_ygrid() +
-  #   theme(
-  #     legend.position = "none",
-  #     panel.spacing = unit(.5, "picas"),
-  #     axis.text.x = element_text(size = 8))
+  # TX_CURR achievement + adjusted achievement, PSNU level
+  # TODO: Add achievement color scheme
+  
+  curr_df <- df_filt_psnu %>% 
+    filter(indicator == "TX_CURR", 
+           fiscal_year == metadata$curr_fy, 
+           funding_agency == "USAID",
+           standardizeddisaggregate == "Total Numerator") %>% 
+    group_by(snu1, psnu, indicator, fiscal_year, funding_agency) %>% 
+    summarize(across(matches("targets|cumu"), sum, na.rm = T)) %>% 
+    ungroup()
+  
+  prep_adj <- curr_df %>% 
+    group_by(snu1, psnu, indicator) %>% 
+    mutate(rslt_capped = ifelse(cumulative > targets, targets, cumulative),
+           rslt_gap = cumulative - targets,
+           rslt_deficit = ifelse(cumulative < targets, cumulative - targets, NA_real_),
+           rslt_surplus = ifelse(cumulative >= targets, cumulative - targets, NA_real_),
+           achv = cumulative / targets,
+           achv_adj = rslt_capped / targets, 
+           snu_over_achv = cumulative > targets) %>% 
+    ungroup() %>% 
+    arrange(rslt_gap) 
+
+  prep_adj <- 
+    prep_adj %>% 
+    group_by(snu_over_achv) %>% 
+    mutate(rslt_gap_tot = sum(rslt_gap)) %>% 
+    ungroup()%>% 
+    mutate(snu_gap_sh = rslt_gap / rslt_gap_tot,
+           gap_running_sh = cumsum(snu_gap_sh),
+           gap_running_target = cumsum(rslt_gap))
+  
+  # Create Global rollups for achv and adjusted achv
+  prep_adj <- 
+    prep_adj %>% 
+    group_by(funding_agency) %>% 
+    mutate(across(c(targets:rslt_surplus), sum, na.rm = T, .names = "{.col}_snu")) %>% 
+    ungroup() %>% 
+    mutate(achv_snu = cumulative_snu / targets_snu,
+           achv_adj_snu = rslt_capped_snu / targets_snu,
+           deficit_sh = abs(rslt_deficit_snu)/targets_snu,
+           surplus_sh = rslt_surplus_snu / targets_snu) %>% 
+    mutate(psnu_order = fct_reorder(psnu, cumulative),
+           facet_label = ifelse(snu_over_achv == TRUE, "Achieved Targets", "Unachieved"), 
+           psnu_order2 = reorder_within(psnu, targets, facet_label))
+
+  # Pull global achv and global ach adj
+  achv_lab     <- prep_adj %>% 
+    slice(1) %>% 
+    pull(achv_snu)
+  
+  achv_adj_lab <- prep_adj %>% 
+    slice(1) %>% 
+    pull(achv_adj_snu)
+  
+  # Plots
+  snu_plot <- 
+    prep_adj %>% 
+    slice(1) %>% 
+    ggplot(aes(y = glue("South Sudan"))) +
+    # What is benchmark?
+    geom_col(aes(x = targets_snu), fill = trolley_grey_light) +
+    # What is total rollup?
+    geom_col(aes(x = cumulative_snu), fill = scooter_med) +
+    # What is target capped rollup
+    geom_col(aes(x = cumulative_snu), fill = scooter) +
+    # What is target capped deficit?
+    # geom_col(aes(x = rslt_deficit_ou), fill = old_rose_light) +
+    #geom_text(aes(x = rslt_capped_ou, label = percent(achv_adj_ou)),
+    #hjust = -0.5, size = 10/.pt, family = "Source Sans Pro") +
+    geom_text(aes(x = cumulative_snu, label = percent(achv_snu)),
+              hjust = -0.5, size = 10/.pt, family = "Source Sans Pro") +
+    geom_vline(xintercept = 0, linewidth = 0.5, color = grey90k) +
+    geom_vline(xintercept = seq(0, 1000, 10000), 
+               color = "white") +
+    scale_x_continuous(labels = scales::label_number_si())+
+    si_style_xgrid() +
+    coord_cartesian(clip = "off", expand = F) +
+    labs(x = NULL, y = NULL, 
+         title = glue("USAID ACHIEVEMENT FOR {unique(curr_df$indicator)} IS {scales::percent({achv_lab})} for {metadata$curr_fy} "))
+  
+  snu_count <- prep_adj %>% 
+    summarise(snu_achv = sum(rslt_surplus > 0, na.rm = T)) %>% 
+    pull()
+  
+  psnu_plot <-  
+    prep_adj %>% 
+    ggplot(aes(y = psnu_order2)) +
+    # What is benchmark?
+    geom_col(aes(x = targets), fill = trolley_grey_light) +
+    # What is total rollup?
+    geom_col(aes(x = cumulative), fill = scooter_med) +
+    # What is target capped rollup
+    # geom_col(aes(x = rslt_capped), fill = scooter) +
+    # Show target threshold in white to indicate surplus
+    geom_errorbar(aes(xmin = targets, 
+                      xmax = targets, 
+                      color = ifelse(!is.na(rslt_surplus), 
+                                     "white", NA_character_)), size = 0.5) +
+    # What is target capped deficit?
+    # geom_col(aes(x = rslt_deficit), fill = old_rose_light) +
+    geom_text(aes(x = cumulative, label = percent(achv, 1)),
+              hjust = -0.5, size = 10/.pt, family = "Source Sans Pro") +
+    geom_vline(xintercept = 0, linewidth = 0.5, color = grey90k) +
+    facet_wrap(~facet_label, scales = "free_y", ncol = 1) +
+    scale_x_continuous(labels = scales::label_number_si())+
+    si_style_xgrid(facet_space = 0.25) +
+    scale_y_reordered() +
+    scale_color_identity()  +
+    coord_cartesian(clip = "off", expand = F) +
+    labs(x = NULL, y = NULL, 
+         title = glue("{snu_count} PSNUs ACHIEVED THEIR {metadata$curr_fy} {unique(curr_df$indicator)} TARGETS"))
   
   
-  # TX_CURR focus of efforts
+  cowplot::plot_grid(snu_plot, psnu_plot,
+                     ncol = 1, align = "hv", axis = "bt", rel_heights = c(1, 6))
+ 
+  # TX_CURR focus of efforts ---------------------------------------------------
   
   df_tx <- df_filt %>%
     filter(
