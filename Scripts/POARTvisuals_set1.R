@@ -61,14 +61,14 @@
   # TX_CURR achievement (Cascade)
   
   # Figures 2-6: 
-  # Overall performance against 95-95-95 goals/remaining gap from 95-95-95 goals 
+  # Overall performance against 95-95-95 goals (Cascade)
+  # remaining gap from 95-95-95 goals 
   # by agency
   # partner
   # SNU1
   # PSNU 
   
-  # TX_CURR achievement + adjusted achievement, PSNU level
-  # TODO: Add achievement color scheme
+  # TX_CURR achievement gap, PSNU level
   
   # OU, SNU, PSNU 
   
@@ -83,136 +83,110 @@
   
   prep_adj <- curr_df %>% 
     group_by(snu1, psnu, indicator) %>% 
-    mutate(rslt_capped = ifelse(cumulative > targets, targets, cumulative),
-           rslt_gap = cumulative - targets,
-           rslt_deficit = ifelse(cumulative < targets, cumulative - targets, NA_real_),
-           rslt_surplus = ifelse(cumulative >= targets, cumulative - targets, NA_real_),
-           achv = cumulative / targets,
-           achv_adj = rslt_capped / targets, 
-           snu_over_achv = cumulative > targets) %>% 
+    mutate(rslt_gap_psnu = cumulative - targets,
+           rslt_deficit_psnu = ifelse(cumulative < targets, cumulative - targets, NA_real_),
+           rslt_surplus_psnu = ifelse(cumulative >= targets, cumulative - targets, NA_real_),
+           rslt_deficit_psnu = replace_na(rslt_deficit_psnu, 0), 
+           rslt_surplus_psnu = replace_na(rslt_surplus_psnu, 0),
+           achv_psnu = cumulative / targets,
+           achv_psnu_round = round(achv_psnu, 2), 
+           psnu_over_achv = cumulative > targets) %>% 
     ungroup() %>% 
-    arrange(rslt_gap) 
-
-  prep_adj <- 
-    prep_adj %>% 
-    group_by(snu_over_achv) %>% 
-    mutate(rslt_gap_tot = sum(rslt_gap)) %>% 
+    arrange(rslt_gap_psnu) %>%
+    group_by(psnu_over_achv) %>% 
+    mutate(rslt_gap_tot_snu = sum(rslt_gap_psnu)) %>% 
     ungroup()%>% 
-    mutate(snu_gap_sh = rslt_gap / rslt_gap_tot,
-           gap_running_sh = cumsum(snu_gap_sh),
-           gap_running_target = cumsum(rslt_gap))
+    mutate(psnu_gap_sh = rslt_gap_psnu / rslt_gap_tot_snu,
+           gap_running_sh_psnu = cumsum(psnu_gap_sh),
+           gap_running_target_psnu = cumsum(rslt_gap_psnu))
   
   # Create SNU level rollups for achv and adjusted achv
-  prep_adj <- 
-    prep_adj %>% 
-    group_by(snu1) %>% 
-    mutate(across(c(targets:rslt_surplus), sum, na.rm = T, .names = "{.col}_snu")) %>% 
-    ungroup() %>% 
-    mutate(achv_snu = cumulative_snu / targets_snu,
-           achv_adj_snu = rslt_capped_snu / targets_snu,
-           deficit_sh = abs(rslt_deficit_snu)/targets_snu,
-           surplus_sh = rslt_surplus_snu / targets_snu,
-           psnu_order = fct_reorder(psnu, cumulative),
-           facet_label = ifelse(snu_over_achv == TRUE, "Achieved Targets", "Unachieved"), 
-           psnu_order2 = reorder_within(psnu, targets, facet_label), 
-           achv_colors_snu = case_when(
-             achv_adj_snu <= 0.25 ~ old_rose_light,
-             (achv_adj_snu > 0.25 & achv_adj_snu < 0.5) ~ burnt_sienna_light,
-             (achv_adj_snu > 0.5 & achv_adj_snu < 0.75) ~ scooter_med,
-             achv_adj_snu > 0.75  ~ trolley_grey_light), 
-           achv_colors_psnu = case_when(
-             achv_adj <= 0.25 ~ old_rose_light,
-             (achv_adj > 0.25 & achv_adj < 0.5) ~ burnt_sienna_light,
-             (achv_adj > 0.5 & achv_adj < 0.75) ~ scooter_med,
-             achv_adj > 0.75  ~ trolley_grey_light))
-
-  # Pull global achv and global ach adj
-  achv_lab  <- prep_adj %>% 
-    pull(achv_snu)
-  
-  achv_adj_lab <- prep_adj %>% 
-    pull(achv_adj_snu)
-  
-  fill_color_snu <- prep_adj$achv_colors_snu
-  
-  snu_count <- prep_adj %>% 
-    summarise(snu_achv = sum(rslt_surplus_snu > 0, na.rm = T)) %>% 
+  prep_adj_roll <- prep_adj %>%
+    group_by(snu1) %>%
+    mutate(across(c(targets:rslt_surplus_psnu), sum, na.rm = T, .names = "{.col}_snu"), 
+           rslt_surplus_psnu_snu = replace_na(rslt_surplus_psnu_snu, 0), 
+           rslt_deficit_psnu_snu = replace_na(rslt_deficit_psnu_snu, 0)) %>%
+    ungroup() %>%
     mutate(
-      sing_plu = if_else(snu_achv == 1, "SNU", "SNUs"), 
-      # TODO: make this more spefic for achieve vs exceed, is this 
-      #       important to automate?
-      achv_exceed_missed = if_else(snu_achv == 1.0,"ACHIEVED OR EXCEEDED", 
-                                   "MISSED"))
+      achv_snu = cumulative_snu / targets_snu,
+      achv_snu_round = round(achv_snu, 2), 
+      deficit_sh_psnu = abs(rslt_deficit_psnu) / targets,
+      surplus_sh_psnu = rslt_surplus_psnu / targets,
+      deficit_sh_snu = abs(rslt_deficit_psnu_snu) / targets_snu,
+      surplus_sh_snu = rslt_surplus_psnu_snu / targets_snu,
+      surp_def_snu = if_else(rslt_surplus_psnu_snu == 0 | is.na(rslt_surplus_psnu_snu), 
+                         "def", "surp"), 
+      surp_def_psnu = if_else(rslt_surplus_psnu == 0 | is.na(rslt_surplus_psnu), 
+                             "def", "surp"))
   
   # Plots
-  
   snu_plot <-
-    prep_adj %>% 
-    ggplot(aes(y = fct_reorder(snu1, achv_snu), fill = fill_color_snu)) +
-    # What is target capped benchmark?
-    geom_col(aes(x = targets_snu), fill = trolley_grey_light) +
-    # What is target capped result?
-    geom_col(aes(x = cumulative_snu), fill = fill_color_snu) +
-    # Add label for achievement as a percent
-    geom_text(aes(x = cumulative_snu, label = percent(achv_snu)), 
+    prep_adj_roll %>% 
+    ggplot(aes(y = fct_reorder(snu1, -rslt_deficit_psnu_snu))) +
+    geom_col(aes(x = rslt_deficit_psnu_snu, fill = rslt_deficit_psnu_snu)) +
+    geom_text(aes(x = rslt_deficit_psnu_snu, label = percent(deficit_sh_snu), 
+                  color = surp_def_snu), 
                 size = 10/.pt, family = "Source Sans Pro") +
-    # What is target capped gap/over-achievement?
-    # geom_col(aes(x = rslt_gap_snu), fill = fill_color_snu) +
-    # Add label for defecit as a percent
-    # geom_text(aes(x = rslt_gap_snu, label = percent(defecit_sh)), 
-    #            size = 10/.pt, family = "Source Sans Pro") +
-    # Add label for surplus as a percent
-    # geom_text(aes(x = rslt_gap_snu, label = percent(surplus_sh)), 
-    #            size = 10/.pt, family = "Source Sans Pro") +
-    scale_x_continuous(labels = scales::label_comma()) +
+    geom_col(aes(x = rslt_surplus_psnu_snu, fill = rslt_surplus_psnu_snu)) +
+    # want to be able to only show for where surplus > 0
+    geom_text(aes(x = rslt_surplus_psnu_snu, label = percent(surplus_sh_snu), 
+                  color = surp_def_snu), size = 10/.pt, family = "Source Sans Pro", 
+              hjust = 1) +
+    scale_x_continuous(limits = c(min(prep_adj_roll$rslt_deficit_psnu_snu),
+                                  max(prep_adj_roll$rslt_surplus_psnu_snu))) +
+    scale_fill_si(palette = "scooters", 
+                  alpha = 0.75,
+                  limits = c(min(prep_adj_roll$rslt_deficit_psnu_snu) - 100,
+                             max(prep_adj_roll$rslt_surplus_psnu_snu) + 100),
+                  reverse = FALSE) +
+    scale_colour_manual(values=c("def" = "#000000", 
+                                 "surp" = "#FFFFFF")) +
     si_style_xgrid() +
     coord_cartesian(clip = "off", expand = F) +
-    labs(x = NULL, y = NULL, 
-     title = glue("{snu_count$snu_achv[1]} {snu_count$sing_plu[1]} {snu_count$achv_exceed_missed[1]} THEIR {metadata$curr_fy} {unique(curr_df$indicator)} TARGETS"))
+    # ultimately should have user specify a more descriptive title based on the 
+    # actual output once they have seen it
+    labs(x = NULL, y = NULL,
+     title = glue("Surplus and Defecit of Achievement in {unique(curr_df$indicator)} for FY {metadata$curr_fy} ")) +
+    theme(legend.position = "none", 
+          strip.background = element_blank(),
+          strip.text.x = element_blank())
   
-  fill_color_psnu <- prep_adj$achv_colors_psnu
-  
-  psnu_count <- prep_adj %>% 
-    summarise(psnu_achv = sum(rslt_surplus > 0, na.rm = T)) %>% 
-    mutate(
-      sing_plu = if_else(psnu_achv == 1, 
-                         "PSNU", "PSNUs"),
-      # TODO: make this more specific for achieve vs exceed, is this 
-      #       important to automate? may want to if we automate the 
-      #       choice of the achievement or the gaps figures
-      achv_exceed_missed = if_else(psnu_achv == 1.0,"ACHIEVED OR EXCEEDED", 
-                                   "MISSED"))
   psnu_plot <-  
-    prep_adj %>% 
-    ggplot(aes(y = psnu_order)) +
-    # What are the targets per psnu?
-    geom_col(aes(x = targets), fill = trolley_grey_light) +
-    # What are cumulative results?
-    geom_col(aes(x = cumulative), fill = fill_color_psnu) +
-    # Add label for achivement as a percent
-    geom_text(aes(x = cumulative, label = percent(achv)), 
+    prep_adj_roll %>% 
+    ggplot(aes(y = fct_reorder(psnu, -rslt_deficit_psnu))) +
+    geom_col(aes(x = rslt_deficit_psnu, fill = rslt_deficit_psnu))  +
+    geom_text(aes(x = rslt_deficit_psnu, label = percent(deficit_sh_psnu), 
+                  color = surp_def_psnu), 
               size = 10/.pt, family = "Source Sans Pro") +
-    # What is target capped gap/over-achievement?
-    # geom_col(aes(x = rslt_gap), fill = fill_color_psnu) +
-    # Add label for gap as a percent
-    # geom_text(aes(x = rslt_gap, label = percent(achv)), 
-    #            size = 10/.pt, family = "Source Sans Pro") +
-    scale_x_continuous(labels = scales::label_comma()) +
-    facet_wrap(~facet_label, scales = "free_y", ncol = 1) +
-    si_style_xgrid(facet_space = 0.25) +
+    geom_col(aes(x = rslt_surplus_psnu, fill = rslt_surplus_psnu)) +
+    # want to be able to only show for where surplus > 0
+    geom_text(aes(x = rslt_surplus_psnu, label = percent(surplus_sh_psnu), 
+                  color = surp_def_psnu), size = 10/.pt, family = "Source Sans Pro", 
+              hjust = 1) +
+    scale_x_continuous(limits = c(min(prep_adj_roll$rslt_deficit_psnu),
+                                  max(prep_adj_roll$rslt_surplus_psnu))) +
+    # do we care how much of a deficit or only that there is one (i.e. should
+    # we use a threshold or the values directly?)
+    scale_fill_si(palette = "scooters", 
+                  alpha = 0.75,
+                  limits = c(min(prep_adj_roll$rslt_deficit_psnu),
+                                    max(prep_adj_roll$rslt_surplus_psnu)),
+                  reverse = FALSE) +
+    scale_colour_manual(values=c("def" = "#000000", 
+                                 "surp" = "#FFFFFF")) + 
+    si_style_nolines(facet_space = 0.25) +
     coord_cartesian(clip = "off", expand = F) +
-    labs(x = NULL, y = NULL, 
-         title = glue("{psnu_count$psnu_achv[1]} {psnu_count$sing_plu[1]} {psnu_count$achv_exceed_missed[1]} THEIR {metadata$curr_fy} {unique(curr_df$indicator)} TARGETS"), 
-         caption = 
-           glue("Adjusted Achievement = Capped result* / Target
-       
-       *The value of the Capped result depends on whether or not targets were exceeded.
-        If they were, the Capped result is equal to the Target, otherwise, it is equal to the 
-        Cumulative result"))
+    # ultimately should have user specify a more descriptive title based on the 
+    # actual output once they have seen it
+    labs(x = NULL, y = NULL,
+         title = glue("Surplus and Defecit of Achievement in {unique(curr_df$indicator)} for FY {metadata$curr_fy} ")) +
+    theme(legend.position = "none", 
+          strip.background = element_blank(),
+          strip.text.x = element_blank())
 
   cowplot::plot_grid(snu_plot, psnu_plot,
                      ncol = 1, align = "hv", axis = "bt", 
-                     rel_heights = c(2, 4))
+                     rel_heights = c(2, 2))
  
   # TX_CURR focus of efforts ---------------------------------------------------
   
