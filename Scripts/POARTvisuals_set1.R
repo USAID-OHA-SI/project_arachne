@@ -19,6 +19,7 @@
   library(ggtext)
   library(tidytext)
   library(cowplot)
+  library(janitor)
 
 # GLOBAL VARIABLES -------------------------------------------------------------
   
@@ -26,7 +27,7 @@
 
 # IMPORT -----------------------------------------------------------------------
   
-  path <- "MER_Structured_Datasets_OU_IM_FY20-23"
+  path <- "MER_Structured_Datasets_OU_IM_FY20-23_20221114_v1_1"
   path_psnu <- "Genie_PSNU_IM_South_Sudan_Daily_2022-11-15"
   
   df <- si_path() %>%
@@ -44,243 +45,259 @@
   df_filt_psnu <- df_psnu %>%
     filter(fiscal_year %in% c("2021", "2022"))
   
-  # metadata
-  si_path() %>% 
-    return_latest(path) %>%
-    get_metadata()
-
-# MUNGE ------------------------------------------------------------------------
+  # # metadata
+  # si_path() %>% 
+  #   return_latest(path) %>%
+  #   get_metadata()
   
-  peds <- c("<01", "01-04", "05-09", "10-14")
-  adults <- c("15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
-              "50-54", "55-59", "60-64", "65+")
+# functions --------------------------------------------------------------------
+  
+  ou_progress_qtr <- function(.path, .df, .indicator, 
+                              .ou, .funding_agency = NULL, ...){
+    
+    # metadata
+    si_path() %>% 
+      return_latest(.path) %>%
+      get_metadata()
+    
+    peds <- c("<01", "01-04", "05-09", "10-14")
+    adults <- c("15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
+                "50-54", "55-59", "60-64", "65+")
+    
+    if(is.null(.funding_agency)){
+      
+      df_new <-  .df %>%
+        filter(
+          operatingunit == .ou,
+          indicator == .indicator,
+          (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
+            (standardizeddisaggregate == "Total Numerator")) %>%
+        mutate(type = ifelse(standardizeddisaggregate == "Total Numerator",
+                             "Total", "Peds")) %>%
+        group_by(fiscal_year, operatingunit, indicator, type) %>%
+        summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
+                  .groups = "drop") %>%
+        reshape_msd("quarters") %>%
+        select(-results_cumulative) %>%
+        arrange(type, operatingunit, period)
+      
+      df_new <- df_new %>%
+        mutate(
+          growth_rate_req =
+            case_when(period == metadata$curr_pd ~
+                        ((targets / results)^(1 / (4 - metadata$curr_qtr))) - 1)) %>%
+        group_by(type) %>%
+        fill(growth_rate_req, .direction = "updown") %>%
+        mutate(
+          growth_rate = (results / lag(results, order_by = period)) - 1,
+          growth_rate = na_if(growth_rate, Inf)) %>%
+        ungroup() %>%
+        mutate(
+          geo_gr_lab = case_when(
+            is.infinite(growth_rate_req) ~ glue("{toupper(operatingunit)}"),
+            growth_rate_req < 0 ~ glue("{toupper(operatingunit)}\nTarget achieved"),
+            growth_rate_req < .1 ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}"),
+            TRUE ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}")),
+          gr_lab = case_when(fiscal_year == metadata$curr_fy ~ 
+                               glue("{percent(growth_rate, 1)}")),
+          gr_lab = stringr::str_replace(gr_lab, "NA", "0"),
+          gr_label_position = 1000,
+          results_lab =    case_when(fiscal_year == metadata$curr_fy ~ 
+                                       glue("{comma(results)}")),
+          disp_targets = case_when(fiscal_year == metadata$curr_fy ~ targets), 
+          amount_diff = targets - results, 
+          pct_change = round_half_up((results - targets)/abs(targets) * 100),0)
+      
+      # percentage change from q1 to q4
+      pct_change_new <- df_new %>%
+        filter(type == "Total") %>%
+        select(fiscal_year, pct_change) %>%
+        filter(pct_change == max(as.numeric(pct_change))) %>%
+        pull()
+      
+      df_new %>%
+        filter(type == "Total") %>%
+        ggplot(aes(period, results, fill = as.character(period))) +
+        geom_col(aes(y = disp_targets), na.rm = TRUE, fill = suva_grey, alpha = .2) +
+        geom_col(na.rm = TRUE, alpha = .7) +
+        # want to only show dashed line for current FY
+        # geom_errorbar(aes(ymin = targets, ymax = targets), 
+        #               linetype = "dashed", width = .95, na.rm = TRUE) +
+        geom_text(aes(label = results_lab, y = results), 
+                  family = "Source Sans Pro", color = usaid_darkgrey, size = 9 / .pt,
+                  vjust = -.5, na.rm = TRUE) +
+        geom_text(aes(label = gr_lab, y = gr_label_position),
+                  family = "Source Sans Pro", color = "white", size = 9 / .pt,
+                  vjust = -.5, na.rm = TRUE) +
+        scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
+        scale_x_discrete(breaks = unique(ou_df_new$period)[grep("Q(4)", unique(ou_df_new$period))]) +
+        scale_fill_manual(values = c(usaid_lightgrey, usaid_lightgrey, usaid_lightgrey, usaid_lightgrey,
+                                     usaid_lightgrey, usaid_lightgrey, usaid_lightgrey, usaid_lightgrey,
+                                     usaid_darkgrey, usaid_darkgrey, usaid_darkgrey, usaid_darkgrey)) +
+        labs(
+          x = NULL, y = NULL,
+          subtitle = glue("{.indicator} Quarterly Trend (Operating Unit)"),
+          caption = glue("{metadata$caption} | US Agency for International Development")) +
+        si_style_ygrid() +
+        theme(
+          legend.position = "none",
+          panel.spacing = unit(.5, "picas"),
+          axis.text.x = element_text(size = 8))
+    
+    }
+    
+    else {
+      
+      df_new <-  df %>%
+        filter(
+          operatingunit == .ou,
+          funding_agency == .funding_agency,
+          indicator == .indicator,
+          (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
+            (standardizeddisaggregate == "Total Numerator")) %>%
+        mutate(type = ifelse(standardizeddisaggregate == "Total Numerator",
+                             "Total", "Peds")) %>%
+        group_by(fiscal_year, operatingunit, indicator, type) %>%
+        summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
+                  .groups = "drop") %>%
+        reshape_msd("quarters") %>%
+        select(-results_cumulative) %>%
+        arrange(type, operatingunit, period)
+      
+      df_new <- df_new %>%
+        mutate(
+          growth_rate_req =
+            case_when(period == metadata$curr_pd ~
+                        ((targets / results)^(1 / (4 - metadata$curr_qtr))) - 1)) %>%
+        group_by(type) %>%
+        fill(growth_rate_req, .direction = "updown") %>%
+        mutate(
+          growth_rate = (results / lag(results, order_by = period)) - 1,
+          growth_rate = na_if(growth_rate, Inf)) %>%
+        ungroup() %>%
+        mutate(
+          geo_gr_lab = case_when(
+            is.infinite(growth_rate_req) ~ glue("{toupper(operatingunit)}"),
+            growth_rate_req < 0 ~ glue("{toupper(operatingunit)}\nTarget achieved"),
+            growth_rate_req < .1 ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}"),
+            TRUE ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}")),
+          gr_lab = case_when(fiscal_year == metadata$curr_fy ~ 
+                               glue("{percent(growth_rate, 1)}")),
+          gr_lab = stringr::str_replace(gr_lab, "NA", "0"),
+          gr_label_position = 1000,
+          results_lab =    case_when(fiscal_year == metadata$curr_fy ~ 
+                                       glue("{comma(results)}")),
+          disp_targets = case_when(fiscal_year == metadata$curr_fy ~ targets), 
+          amount_diff = targets - results, 
+          pct_change = round_half_up((results - targets)/abs(targets) * 100),0)
+      
+      # percentage change from q1 to q4
+      pct_change_new <- df_new %>%
+        filter(type == "Total") %>%
+        select(fiscal_year, pct_change) %>%
+        filter(pct_change == max(as.numeric(pct_change))) %>%
+        pull()
+      
+      df_new %>%
+        filter(type == "Total") %>%
+        ggplot(aes(period, results, fill = as.character(period))) +
+        geom_col(aes(y = disp_targets), na.rm = TRUE, fill = suva_grey, alpha = .2) +
+        geom_col(na.rm = TRUE, alpha = .7) +
+        # want to only show dashed line for current FY
+        # geom_errorbar(aes(ymin = targets, ymax = targets), 
+        #               linetype = "dashed", width = .95, na.rm = TRUE) +
+        geom_text(aes(label = results_lab, y = results), 
+                  family = "Source Sans Pro", color = usaid_darkgrey, size = 9 / .pt,
+                  vjust = -.5, na.rm = TRUE) +
+        geom_text(aes(label = gr_lab, y = gr_label_position),
+                  family = "Source Sans Pro", color = "white", size = 9 / .pt,
+                  vjust = -.5, na.rm = TRUE) +
+        scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
+        scale_x_discrete(breaks = unique(ou_df_new$period)[grep("Q(4)", unique(ou_df_new$period))]) +
+        scale_fill_manual(values = c(usaid_lightgrey, usaid_lightgrey, usaid_lightgrey, usaid_lightgrey,
+                                     usaid_lightgrey, usaid_lightgrey, usaid_lightgrey, usaid_lightgrey,
+                                     usaid_darkgrey, usaid_darkgrey, usaid_darkgrey, usaid_darkgrey)) +
+        labs(
+          x = NULL, y = NULL,
+          subtitle = glue("{.indicator} Quarterly Trend (USAID)"),
+          caption = glue("{metadata$caption} | US Agency for International Development")) +
+        si_style_ygrid() +
+        theme(
+          legend.position = "none",
+          panel.spacing = unit(.5, "picas"),
+          axis.text.x = element_text(size = 8))
+    
+    }
+            
+  }
+
+# VIZ --------------------------------------------------------------------------
   
   # Q: how do we want to characterize any "unknown age" data?
   # (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered == "Unknown Age")
   
-  # TX_CURR achievement (Cascade)
+  # OU level -------------------------------------------------------------------
+    # Performance quarterly growth trend ---------------------------------------
   
-  # Figures 2-6: 
-  # Overall performance against 95-95-95 goals (Cascade)
-  # remaining gap from 95-95-95 goals 
-  # by agency
-  # partner
-  # SNU1
-  # PSNU 
+  ou_progress_qtr(.path = path, 
+                  .df = df, 
+                  .indicator = "TX_NEW", 
+                  .ou = "South Sudan")
   
-  # TX_CURR achievement gap, PSNU level
-  
-  # OU, SNU, PSNU 
-  
-  curr_df <- df_filt_psnu %>% 
-    filter(indicator == "TX_CURR", 
-           fiscal_year == metadata$curr_fy, 
-           funding_agency == "USAID",
-           standardizeddisaggregate == "Total Numerator") %>% 
-    group_by(snu1, psnu, indicator, fiscal_year, funding_agency) %>% 
-    summarize(across(matches("targets|cumu"), sum, na.rm = T)) %>% 
-    ungroup()
-  
-  prep_adj <- curr_df %>% 
-    group_by(snu1, psnu, indicator) %>% 
-    mutate(rslt_gap_psnu = cumulative - targets,
-           rslt_deficit_psnu = ifelse(cumulative < targets, cumulative - targets, NA_real_),
-           rslt_surplus_psnu = ifelse(cumulative >= targets, cumulative - targets, NA_real_),
-           rslt_deficit_psnu = replace_na(rslt_deficit_psnu, 0), 
-           rslt_surplus_psnu = replace_na(rslt_surplus_psnu, 0),
-           achv_psnu = cumulative / targets,
-           achv_psnu_round = round(achv_psnu, 2), 
-           psnu_over_achv = cumulative > targets) %>% 
-    ungroup() %>% 
-    arrange(rslt_gap_psnu) %>%
-    group_by(psnu_over_achv) %>% 
-    mutate(rslt_gap_tot_snu = sum(rslt_gap_psnu)) %>% 
-    ungroup()%>% 
-    mutate(psnu_gap_sh = rslt_gap_psnu / rslt_gap_tot_snu,
-           gap_running_sh_psnu = cumsum(psnu_gap_sh),
-           gap_running_target_psnu = cumsum(rslt_gap_psnu))
-  
-  # Create SNU level rollups for achv and adjusted achv
-  prep_adj_roll <- prep_adj %>%
-    group_by(snu1) %>%
-    mutate(across(c(targets:rslt_surplus_psnu), sum, na.rm = T, .names = "{.col}_snu"), 
-           rslt_surplus_psnu_snu = replace_na(rslt_surplus_psnu_snu, 0), 
-           rslt_deficit_psnu_snu = replace_na(rslt_deficit_psnu_snu, 0)) %>%
-    ungroup() %>%
-    mutate(
-      achv_snu = cumulative_snu / targets_snu,
-      achv_snu_round = round(achv_snu, 2), 
-      deficit_sh_psnu = abs(rslt_deficit_psnu) / targets,
-      surplus_sh_psnu = rslt_surplus_psnu / targets,
-      deficit_sh_snu = abs(rslt_deficit_psnu_snu) / targets_snu,
-      surplus_sh_snu = rslt_surplus_psnu_snu / targets_snu,
-      surp_def_snu = if_else(rslt_surplus_psnu_snu == 0 | is.na(rslt_surplus_psnu_snu), 
-                         "def", "surp"), 
-      surp_def_psnu = if_else(rslt_surplus_psnu == 0 | is.na(rslt_surplus_psnu), 
-                             "def", "surp"))
-  
-  # Plots
-  snu_plot <-
-    prep_adj_roll %>% 
-    ggplot(aes(y = fct_reorder(snu1, -rslt_deficit_psnu_snu))) +
-    geom_col(aes(x = rslt_deficit_psnu_snu, fill = rslt_deficit_psnu_snu)) +
-    geom_text(aes(x = rslt_deficit_psnu_snu, label = percent(deficit_sh_snu), 
-                  color = surp_def_snu), 
-                size = 10/.pt, family = "Source Sans Pro") +
-    geom_col(aes(x = rslt_surplus_psnu_snu, fill = rslt_surplus_psnu_snu)) +
-    # want to be able to only show for where surplus > 0
-    geom_text(aes(x = rslt_surplus_psnu_snu, label = percent(surplus_sh_snu), 
-                  color = surp_def_snu), size = 10/.pt, family = "Source Sans Pro", 
-              hjust = 1) +
-    scale_x_continuous(limits = c(min(prep_adj_roll$rslt_deficit_psnu_snu),
-                                  max(prep_adj_roll$rslt_surplus_psnu_snu))) +
-    scale_fill_si(palette = "scooters", 
-                  alpha = 0.75,
-                  limits = c(min(prep_adj_roll$rslt_deficit_psnu_snu) - 100,
-                             max(prep_adj_roll$rslt_surplus_psnu_snu) + 100),
-                  reverse = FALSE) +
-    scale_colour_manual(values=c("def" = "#000000", 
-                                 "surp" = "#FFFFFF")) +
-    si_style_xgrid() +
-    coord_cartesian(clip = "off", expand = F) +
-    # ultimately should have user specify a more descriptive title based on the 
-    # actual output once they have seen it
-    labs(x = NULL, y = NULL,
-     title = glue("Surplus and Defecit of Achievement in {unique(curr_df$indicator)} for FY {metadata$curr_fy} ")) +
-    theme(legend.position = "none", 
-          strip.background = element_blank(),
-          strip.text.x = element_blank())
-  
-  psnu_plot <-  
-    prep_adj_roll %>% 
-    ggplot(aes(y = fct_reorder(psnu, -rslt_deficit_psnu))) +
-    geom_col(aes(x = rslt_deficit_psnu, fill = rslt_deficit_psnu))  +
-    geom_text(aes(x = rslt_deficit_psnu, label = percent(deficit_sh_psnu), 
-                  color = surp_def_psnu), 
-              size = 10/.pt, family = "Source Sans Pro") +
-    geom_col(aes(x = rslt_surplus_psnu, fill = rslt_surplus_psnu)) +
-    # want to be able to only show for where surplus > 0
-    geom_text(aes(x = rslt_surplus_psnu, label = percent(surplus_sh_psnu), 
-                  color = surp_def_psnu), size = 10/.pt, family = "Source Sans Pro", 
-              hjust = 1) +
-    scale_x_continuous(limits = c(min(prep_adj_roll$rslt_deficit_psnu),
-                                  max(prep_adj_roll$rslt_surplus_psnu))) +
-    # do we care how much of a deficit or only that there is one (i.e. should
-    # we use a threshold or the values directly?)
-    scale_fill_si(palette = "scooters", 
-                  alpha = 0.75,
-                  limits = c(min(prep_adj_roll$rslt_deficit_psnu),
-                                    max(prep_adj_roll$rslt_surplus_psnu)),
-                  reverse = FALSE) +
-    scale_colour_manual(values=c("def" = "#000000", 
-                                 "surp" = "#FFFFFF")) + 
-    si_style_nolines(facet_space = 0.25) +
-    coord_cartesian(clip = "off", expand = F) +
-    # ultimately should have user specify a more descriptive title based on the 
-    # actual output once they have seen it
-    labs(x = NULL, y = NULL,
-         title = glue("Surplus and Defecit of Achievement in {unique(curr_df$indicator)} for FY {metadata$curr_fy} ")) +
-    theme(legend.position = "none", 
-          strip.background = element_blank(),
-          strip.text.x = element_blank())
-
-  cowplot::plot_grid(snu_plot, psnu_plot,
-                     ncol = 1, align = "hv", axis = "bt", 
-                     rel_heights = c(2, 2))
- 
-  # TX_CURR focus of efforts ---------------------------------------------------
-  
-  df_tx <- df_filt %>%
-    filter(
-      indicator == "TX_CURR",
-      funding_agency != "Dedup",
-      (standardizeddisaggregate == "Age/Sex/HIVStatus" & is.na(ageasentered)) | 
-      (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
-      (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults) |
-      (standardizeddisaggregate == "Total Numerator")) %>%
-    mutate(type = case_when(
-      standardizeddisaggregate == "Total Numerator" & 
-        is.na(ageasentered)~ "Total", 
-      standardizeddisaggregate == "Age/Sex/HIVStatus" & 
-      ageasentered %in% peds ~ "Children", 
-      standardizeddisaggregate == "Age/Sex/HIVStatus" & 
-      ageasentered %in% adults ~ "Adults", 
-      standardizeddisaggregate == "Age/Sex/HIVStatus" & 
-        ageasentered == "Unknown Age" ~ "Unknown")) %>%
-    group_by(country, fiscal_year, indicator, type) %>%
-    summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
-              .groups = "drop") %>%
-    reshape_msd("quarters") %>%
-    select(-results_cumulative) %>%
-    arrange(type, period)
-  
-  df_tx <- df_tx %>%
-    mutate(
-      growth_rate_req =
-        case_when(period == metadata$curr_pd ~
-                    ((targets / results)^(1 / (4 - metadata$curr_qtr))) - 1)) %>%
-    group_by(type) %>%
-    fill(growth_rate_req, .direction = "updown") %>%
-    mutate(
-      growth_rate = (results / lag(results, order_by = period)) - 1,
-      growth_rate = na_if(growth_rate, Inf)) %>%
-    ungroup() %>%
-    mutate(
-      geo_gr_lab = case_when(
-        is.infinite(growth_rate_req) ~ glue("{type}"),
-        growth_rate_req < 0 ~ glue("{type}\nTarget achieved"),
-        growth_rate_req < .1 ~ glue("{type} ({percent(growth_rate_req, 1)})"),
-        TRUE ~ glue("{type} ({percent(growth_rate_req, 1)})")),
-      gr_req_lab = case_when(fiscal_year == metadata$curr_fy ~ percent(growth_rate_req, 1)),
-      gr_label_position = results + 10000,
-      disp_targets = case_when(fiscal_year == metadata$curr_fy ~ targets))
-  
-  df_focus <- df_tx %>%
-    filter(period == metadata$curr_pd, 
-           growth_rate_req == max(growth_rate_req)) %>%
-    select(type) %>%
-    pull()
-  
-  pd <- df_tx %>%
-    filter(period == metadata$curr_pd) %>%
-    select(period) %>%
-    distinct() %>%
-    pull()
-  
-  df_tx %>%
-    filter(fiscal_year == metadata$curr_fy) %>%
-    mutate(period_type = glue("{period}_{type}")) %>%
-    ggplot(aes(x = period)) +
-    geom_col(aes(y = results, fill = type),
-             alpha = .55,
-             position = position_dodge(width = -.75)) +
-    geom_hline(aes(yintercept = disp_targets, color = type), 
-               linetype = "dashed") +
-    facet_wrap(~fct_reorder2(geo_gr_lab, fiscal_year, targets), scales = "free_y", 
-               nrow = 1) +
-    scale_y_continuous(limits = c(0, 65000), 
-                       label = label_number(scale_cut = cut_short_scale())) +
-    scale_x_discrete(breaks = pd) +
-    scale_fill_manual(values = c("Adults" = usaid_medblue,
-                                 "Children" = usaid_lightblue,
-                                 "Total" = usaid_blue)) +
-    scale_color_manual(values = c("Adults" = usaid_medblue,
-                                 "Children" = usaid_lightblue,
-                                 "Total" = usaid_blue)) +
-    coord_flip() +
-     labs(
-       x = NULL, y = NULL,
-       title = glue("{df_focus} Require Greatest Effort To Meet Quarterly Treatment Achievement Targets") %>% toupper(),
-       subtitle = "Growth rate required (%) to meet TX_CURR targets for the current period",
-       caption = glue("{metadata$caption} | US Agency for International Development")) +
-    si_style_ygrid() +
-    theme(
-      legend.position = "none",
-      panel.spacing = unit(.5, "picas"),
-      axis.text.x = element_text(size = 8))
-  
-  
-  # Quarterly Trend in IIT and RTT at OU level
+  si_save(paste0(metadata$curr_pd, "TX_CURR_quarterly.png"),
+          path = "Images",
+          scale = 0.8)
+   
+  ou_progress_qtr(.path = path, 
+                  .df = df, 
+                  .indicator = "TX_NEW", 
+                  .ou = "South Sudan")
+   
+   si_save(paste0(metadata$curr_pd, "TX_NEW_quarterly.png"),
+           path = "Images",
+           scale = 0.8)
+   
+    # TX_NEW/NET_NEW quarterly trend -------------------------------------------
+   
+   # df_nn <- ou_df %>% 
+   #   filter(indicator %in% c("TX_CURR", "TX_NEW", "TX_NET_NEW"),
+   #          fiscal_year == "2022", 
+   #          funding_agency == "USAID") %>%
+   #   pluck_totals() %>% 
+   #   group_by(country, indicator, fiscal_year) %>% 
+   #   summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>% 
+   #   reshape_msd(include_type = FALSE) %>% 
+   #   pivot_wider(names_from = indicator,
+   #               names_glue = "{tolower(indicator)}") %>%
+   #   pivot_longer(c(tx_net_new, tx_new), 
+   #                names_to = "indicator") %>% 
+   #   mutate(fill_color = ifelse(indicator == "tx_net_new", scooter, scooter_light),
+   #          indicator = glue("{toupper(indicator)}"),
+   #          share = value / tx_curr)
+   # 
+   # df_nn %>%
+   #   filter(tx_curr != 0) %>%
+   #   ggplot(aes(period, value, fill = fct_rev(indicator))) +
+   #   geom_col(alpha = .75,
+   #            position = position_dodge(width = .5)) +
+   #   geom_hline(yintercept = 0) +
+   #   scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
+   #   scale_fill_manual(values = c("TX_NEW" = scooter,
+   #                                "TX_NET_NEW" = scooter_light)) +
+   #   labs(x = NULL, y = NULL, fill = NULL,
+   #        title = glue("<span style='color:{scooter_light}'>TX_NET_NEW</span> DROPPED IN Q3, REBOUNDED BY Q4"),
+   #        subtitle = glue("TX_NEW stayed relatively constant"),
+   #        caption = glue("{metadata$caption} | US Agency for International Development")) +
+   #   si_style_ygrid() +
+   #   theme(panel.spacing = unit(.5, "line"),
+   #         legend.position = "none",
+   #         plot.title = element_markdown(),
+   #         strip.text = element_markdown())
+   # 
+   # si_save(glue("Images/{metadata$curr_pd}_SSD_tx-new-nn.png"),
+   #         scale = 1.1)  
+   
+    # Quarterly Trend in IIT ---------------------------------
   
   df_iit <- df_filt %>% 
     filter(indicator %in% c("TX_ML", "TX_CURR", "TX_NEW", "TX_NET_NEW", 
@@ -314,34 +331,147 @@
                  names_to = "indicator") %>% 
     mutate(fill_color = ifelse(indicator == "iit", old_rose, denim),
            indicator = glue("{toupper(indicator)}"))
+
   
   df_iit %>%
+    filter(fiscal_year == "FY22") %>%
     ggplot(aes(period, value, fill = fct_rev(indicator))) +
     geom_col(alpha = .55,
              position = position_dodge(width = -.55)) +
-     facet_wrap(~fiscal_year, scales = "free_x", 
-                ncol = 1) +
+     # facet_wrap(~fiscal_year, scales = "free_x", 
+     #            ncol = 1) +
     scale_fill_manual(values = c("IIT" = old_rose,
                                  "SHARE_RTT_CURR" = denim)) +
     scale_y_continuous(limits = c(0, .1),
                        label = percent_format(1),
                        oob = oob_squish, 
                        breaks = c(0, 0.05, 0.1)) +
-    scale_x_discrete(breaks = NULL) +
-    si_style() +
+    scale_x_discrete(breaks = unique(ou_df_curr$period)[grep("Q(4)", unique(ou_df_curr$period))]) +
+    si_style_ygrid() +
     theme(panel.spacing = unit(.5, "line"),
           legend.position = "none",
           plot.title = element_markdown(),
           strip.text = element_markdown()) +
   labs(x = NULL, y = NULL, fill = NULL,
+  # note that IIT cap will vary by OU, likely need to make this something 
+  # the user can easily specify
   title = glue("OU QUARTERLY <span style='color:{old_rose}'>IIT</span> AND 
                <span style='color:{denim}'>SHARE OF RTT</span>"),
           caption = glue(" Note: IIT = TX_ML / TX_CURR - TX_NET_NEW + TX_NEW; ITT capped to 10%
                                  Share of RTT = TX_RTT/TX_CURR
                          {metadata$caption} | US Agency for International Development"))
-
   
-
+  si_save(paste0(metadata$curr_pd, "IIT_RTT_quarterly.png"),
+          path = "Images",
+          scale = 0.8)
+ -----------------------------------------------
   
+  # df_iit_rtt <- ou_df %>% 
+  #   filter(funding_agency == "USAID", 
+  #          indicator %in% c("TX_ML", "TX_CURR", "TX_NEW", "TX_NET_NEW", "TX_RTT"), 
+  #          fiscal_year == "2022") %>%
+  #   pluck_totals() %>%
+  #   group_by(fiscal_year, country, indicator) %>% 
+  #   summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>% 
+  #   reshape_msd(include_type = FALSE) %>% 
+  #   pivot_wider(names_from = "indicator",
+  #               names_glue = "{tolower(indicator)}")
+  # 
+  # df_iit_rtt <- df_iit_rtt %>%
+  #   mutate(tx_curr_lag1 = tx_curr - tx_net_new) %>% 
+  #   rowwise() %>% 
+  #   mutate(iit = tx_ml / sum(tx_curr_lag1, tx_new, na.rm = TRUE), 
+  #          iit_label = percent(iit), 
+  #          qtr_label = glue("{period} ({iit_label})")) %>% 
+  #   ungroup()
+  # 
+  # vct_itt_cntry <- ou_df %>% 
+  #   filter(funding_agency == "USAID", 
+  #          indicator %in% c("TX_ML", "TX_CURR", "TX_NEW", "TX_NET_NEW", "TX_RTT"), 
+  #          fiscal_year == "2022") %>%
+  #   pluck_totals() %>%
+  #   group_by(fiscal_year, country, indicator) %>% 
+  #   summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>% 
+  #   reshape_msd(include_type = FALSE) %>% 
+  #   pivot_wider(names_from = "indicator",
+  #               names_glue = "{tolower(indicator)}") %>% 
+  #   filter(period == metadata$curr_pd) %>% 
+  #   mutate(tx_curr_lag1 = tx_curr - tx_net_new) %>% 
+  #   rowwise() %>% 
+  #   mutate(
+  #     iit = tx_ml / sum(tx_curr_lag1, tx_new, na.rm = TRUE)) %>% 
+  #   ungroup() %>% 
+  #   pull() %>% 
+  #   percent()
+  # 
+  # df_iit_rtt %>%
+  #   mutate(fiscal_year = str_sub(period, end = 4)) %>% 
+  #   filter(tx_curr_lag1 != 0) %>%
+  #   ggplot(aes(qtr_label, iit)) +
+  #   geom_smooth(aes(weight = tx_curr_lag1, group = country),
+  #               method = "loess",
+  #               formula = "y ~ x", se = FALSE, na.rm = TRUE,
+  #               linewidth = 1.5, color = old_rose_light) +
+  #   scale_y_continuous(limits = c(0,.15),
+  #                      label = NULL,
+  #                      oob = oob_squish) +
+  #   coord_cartesian(clip = "off") +
+  #   labs(x = NULL, y = NULL,
+  #        size = "Site TX_CURR (1 period prior)",
+  #        title = glue("USAID MAINTAINED A RELATIVELY CONSTANT {vct_itt_cntry} IIT OVER FY22"),
+  #        subtitle = glue("A 1% increase Occurred in Q3"),
+  #        caption = glue("Note: IIT = TX_ML / TX_CURR - TX_NET_NEW + TX_NEW; ITT capped to 15%
+  #                       {metadata$caption} | US Agency for International Development")) +
+  #   si_style_ygrid() +
+  #   theme(panel.spacing = unit(.5, "line"),
+  #         axis.text = element_text(size = 8),
+  #         plot.subtitle = element_markdown())
+  # 
+  # si_save(glue("Images/{metadata$curr_pd}_SSD_OU_iit.png"),
+  #         scale = 0.8)  
+  
+  si_save(paste0(metadata$curr_pd, "TX_NEW_quarterly.png"),
+          path = "Images",
+          scale = 0.8)
+  
+  
+  # USAID only -----------------------------------------------------------------
+  
+    # TX-CURR Performance quarterly growth trend 
+  ou_progress_qtr(.path = path, 
+                  .df = df, 
+                  .indicator = "TX_CURR", 
+                  .ou = "South Sudan", 
+                  .funding_agency = "USAID")
+  
+  si_save(paste0(metadata$curr_pd, "TX_CURR_quarterly_USAID.png"),
+          path = "Images",
+          scale = 0.8)
+  
+    # TX_NEW Performance quarterly growth trend
+  ou_progress_qtr(.path = path, 
+                  .df = df, 
+                  .indicator = "TX_NEW", 
+                  .ou = "South Sudan", 
+                  .funding_agency = "USAID")
+  
+  si_save(paste0(metadata$curr_pd, "TX_NEW_quarterly_USAID.png"),
+          path = "Images",
+          scale = 0.8)
+                  
+    # Quarterly Trend in IIT
+  
+    # Peds ---------------------------------------------------------------------
+  
+      # TX-CURR Performance quarterly growth trend 
+      # TX_NEW Performance quarterly growth trend
+      # Quarterly Trend in IIT
+  
+    # AGYW (15-24) -------------------------------------------------------------
+    
+      # TX-CURR Performance quarterly growth trend 
+      # TX_NEW Performance quarterly growth trend
+      # Quarterly Trend in IIT
+      
   
   
