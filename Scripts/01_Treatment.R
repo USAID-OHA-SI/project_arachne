@@ -99,13 +99,11 @@ ssd_tx_curr_subnat <- df_nat$TX_CURR_SUBNAT
       .indicator = "TX_CURR",
       .ou = selected_ou,
       # choose up to 2
-      .fiscal_year = selected_years
-    )
+      .fiscal_year = selected_years)
     
     si_save(paste0(metadata$curr_pd, "TX_CURR_summary_SSD.png"),
       path = output_path,
-      scale = 0.8
-    )
+      scale = 0.8)
     
     # TX_NEW example
     
@@ -115,14 +113,11 @@ ssd_tx_curr_subnat <- df_nat$TX_CURR_SUBNAT
       .indicator = "TX_NEW",
       .ou = selected_ou,
       # choose up to 2
-      .fiscal_year = selected_years
-    )
+      .fiscal_year = selected_years)
     
     si_save(paste0(metadata$curr_pd, "TX_NEW_summary_SSD.png"),
       path = output_path,
-      scale = 0.8
-    )
-    
+      scale = 0.8)
     
     # USAID ---------------------------------------------
     
@@ -135,13 +130,11 @@ ssd_tx_curr_subnat <- df_nat$TX_CURR_SUBNAT
       .ou = selected_ou,
       # choose up to 2
       .fiscal_year = selected_years,
-      .funding_agency = selected_agency
-    )
+      .funding_agency = selected_agency)
     
     si_save(paste0(metadata$curr_pd, "TX_CURR_summary_SSD_USAID.png"),
       path = output_path,
-      scale = 0.8
-    )
+      scale = 0.8)
     
     # TX_NEW example
     
@@ -152,30 +145,25 @@ ssd_tx_curr_subnat <- df_nat$TX_CURR_SUBNAT
       .ou = selected_ou,
       # choose up to 2
       .fiscal_year = selected_years,
-      .funding_agency = selected_agency
-    )
+      .funding_agency = selected_agency)
     
     si_save(paste0(metadata$curr_pd, "TX_NEW_summary_SSD_USAID.png"),
       path = output_path,
-      scale = 0.8
-    )
-   
+      scale = 0.8)
      
 # Quarterly growth trend -----------------------------------------------------
 
 
-# OU level
+  # OU level
 
-  # OU level 
-    
-  # OU level 
     # All Agencies ---------------------------------------------
     
     ou_trend(
       .path = msd_path_ou,
       .df = df_ou,
       .indicator = "TX_CURR",
-      .ou = selected_ou)
+      .ou = selected_ou, 
+      .type = "Total")
     
     si_save(paste0(metadata$curr_pd, "TX_CURR_quarterly_SSD.png"),
       path = output_path,
@@ -188,14 +176,12 @@ ssd_tx_curr_subnat <- df_nat$TX_CURR_SUBNAT
       .df = df_ou,
       .indicator = "TX_CURR",
       .ou = selected_ou,
-      .funding_agency = selected_agency
-    )
+      .funding_agency = selected_agency, 
+      .type = "Total")
     
     si_save(paste0(metadata$curr_pd, "TX_CURR_quarterly_SSD_USAID.png"),
       path = output_path,
-      scale = 0.8
-    )
-    
+      scale = 0.8)
     
 # Quarterly Trend in IIT, IIT, and Change Over Time --------------------------
 
