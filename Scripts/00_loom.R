@@ -44,21 +44,58 @@ calculate_plhiv <- function(.nat_subnat_df) {
   return(df_nat)
 }
 
+# Treatment --------------------------------------------------------------------
+
 # Summarizes cumulative quarterly progress on selected indicators
 
-ou_trend_cum <- function(.path, .df, .indicator, .ou, .fiscal_year,
-                         .funding_agency = NULL, ...) {
+ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type, 
+                          .subtitle, .funding_agency = NULL, ...) {
   
   qtrs_to_keep <- metadata$curr_pd %>%
     convert_qtr_to_date() %>%
     seq.Date(by = "-3 months", length = 6) %>%
     convert_date_to_qtr()
-
+  
+  # filter for type, Total or Adults/Children
+  if (.type == "Total") {
+    
+  .df <- .df %>%
+    filter(
+      indicator %in% .indicator,
+      operatingunit == .ou,
+      fiscal_year %in% .fiscal_year) %>%
+    pluck_totals()}
+  
+  else {
+    
+    peds <- c("<01", "01-04", "05-09", "10-14")
+    adults <- c(
+      "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
+      "50-54", "55-59", "60-64", "65+")
+    
+    .df <- .df %>%
+      filter(
+        indicator %in% .indicator,
+        operatingunit == .ou,
+        fiscal_year %in% .fiscal_year, 
+        (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
+        (standardizeddisaggregate == "Total Numerator") |
+          (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)) %>%
+  mutate(type = case_when(
+    standardizeddisaggregate == "Total Numerator" ~ "Total",
+    standardizeddisaggregate == "Age/Sex/HIVStatus" &
+      ageasentered %in% adults ~ "Adults",
+    standardizeddisaggregate == "Age/Sex/HIVStatus" &
+      ageasentered %in% peds ~ "Pediatric")) %>%
+  filter(type %in% c("Total", .type))
+    
+  }
+  
+  # filter for agency 
+  
   if (!is.null(.funding_agency)) {
     .df <- .df %>%
       filter(funding_agency == .funding_agency)
-
-    # how can we dynamically title the agency specific graphs?
   }
 
   df_new <- .df %>%
@@ -118,7 +155,7 @@ ou_trend_cum <- function(.path, .df, .indicator, .ou, .fiscal_year,
     ) +
     labs(
       x = NULL, y = NULL, fill = NULL,
-      subtitle = glue("{.indicator} cumulative achievement against quarterly targets ({df_new$operatingunit[1]})"),
+      subtitle = glue("{.subtitle}"),
       caption = glue("{metadata$caption} | US Agency for International Development")
     ) +
     si_style_yline() +
@@ -128,13 +165,12 @@ ou_trend_cum <- function(.path, .df, .indicator, .ou, .fiscal_year,
       plot.title = element_markdown(),
       strip.text = element_markdown()
     )
-}
-
+  }
+  
 # Summarizes quarterly progress on selected indicators
 
-ou_trend <- function(.path, .df, .indicator,
-                     .ou, .funding_agency = NULL,
-                     .type, ...) {
+ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
+                        .funding_agency = NULL, ...) {
   # metadata
   si_path() %>%
     return_latest(.path) %>%
@@ -157,10 +193,14 @@ ou_trend <- function(.path, .df, .indicator,
       operatingunit == .ou,
       indicator == .indicator,
       (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
-        (standardizeddisaggregate == "Total Numerator")
-    ) %>%
-    mutate(type = ifelse(standardizeddisaggregate == "Total Numerator",
-      "Total", "Peds")) %>%
+        (standardizeddisaggregate == "Total Numerator") |
+        (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)) %>%
+    mutate(type = case_when(standardizeddisaggregate == "Total Numerator" ~ "Total", 
+                            standardizeddisaggregate == "Age/Sex/HIVStatus" & 
+                            ageasentered %in% adults ~ "Adults",
+                            standardizeddisaggregate == "Age/Sex/HIVStatus" & 
+                            ageasentered %in% peds ~ "Pediatric")) %>%
+    filter(type == .type) %>%
     group_by(fiscal_year, operatingunit, indicator, type) %>%
     summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
       .groups = "drop"
@@ -230,8 +270,9 @@ ou_trend <- function(.path, .df, .indicator,
     labs(
       x = NULL, y = NULL,
       title = NULL,
-      subtitle = glue("{.indicator} quarterly trend and growth rate for {.type} ({df_new$operatingunit[1]})"),
-      caption = glue("{metadata$caption} | US Agency for International Development")
+      subtitle = glue("{.subtitle}"),
+      caption = glue("Note: Adults = Ages 15+ and Children= Ages <15
+                     {metadata$caption} | US Agency for International Development")
     ) +
     si_style_ygrid() +
     theme(
@@ -243,48 +284,72 @@ ou_trend <- function(.path, .df, .indicator,
 
 # Summarizes patient gain/loss quarterly trend
 
-ou_patient_change_trend <- function(.path, .df, .ou, .funding_agency = NULL, ...) {
+ou_patient_delta <- function(.path, .df, .ou, .fiscal_year, .type, .subtitle,
+                             .funding_agency = NULL, ...) {
   # metadata
   si_path() %>%
     return_latest(.path) %>%
     get_metadata()
 
   # add a unit test to check that tx_new and tx_net_new exist in .df
+  # add a unit test to check that path, df, ou, years, and agency(if not null)
+  # are not empty and exist in df
 
+
+  # filter for type, Total or Adults/Children
+  if (.type == "Total") {
+    .df <- .df %>%
+      filter(
+        indicator %in% c("TX_NEW", "TX_NET_NEW"),
+        operatingunit == .ou,
+        fiscal_year %in% .fiscal_year) %>%
+      pluck_totals()
+    
+  } else {
+    peds <- c("<01", "01-04", "05-09", "10-14")
+    adults <- c(
+      "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
+      "50-54", "55-59", "60-64", "65+")
+
+    .df <- .df %>%
+      filter(
+        operatingunit == .ou,
+        indicator == .indicator,
+        (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
+          (standardizeddisaggregate == "Total Numerator") |
+          (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)) %>%
+      mutate(type = case_when(
+        standardizeddisaggregate == "Total Numerator" ~ "Total",
+        standardizeddisaggregate == "Age/Sex/HIVStatus" &
+          ageasentered %in% adults ~ "Adults",
+        standardizeddisaggregate == "Age/Sex/HIVStatus" &
+          ageasentered %in% peds ~ "Pediatric")) %>%
+      filter(type == .type)
+  }
+
+  # filter for funding agency
   if (!is.null(.funding_agency)) {
     .df <- .df %>%
       filter(funding_agency == .funding_agency)
-
-    # how can we dynamically title the agency specific graphs?
   }
 
-  df_iit <- .df %>%
-    filter(
-      indicator %in% c("TX_NEW", "TX_NET_NEW"),
-      operatingunit == .ou
-    ) %>%
-    pluck_totals() %>%
+  .df %>%
     clean_indicator() %>%
     group_by(operatingunit, fiscal_year, indicator) %>%
     summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>%
     reshape_msd(include_type = FALSE) %>%
     pivot_wider(
       names_from = indicator,
-      names_glue = "{tolower(indicator)}"
-    ) %>%
+      names_glue = "{tolower(indicator)}") %>%
     mutate(
       fiscal_year = str_extract(period, "FY[0-2]{2}"),
-      patient_loss_gain = tx_net_new - tx_new
-    ) %>%
+      patient_loss_gain = tx_net_new - tx_new) %>%
     ungroup() %>%
     pivot_longer(c(patient_loss_gain),
-      names_to = "indicator"
-    ) %>%
+      names_to = "indicator") %>%
     mutate(
       delta_lab = if_else(indicator == "patient_loss_gain",
-        comma(value), ""
-      )
-    )
+        comma(value), ""))
 
   df_iit %>%
     ggplot(aes(x = period)) +
@@ -294,8 +359,7 @@ ou_patient_change_trend <- function(.path, .df, .ou, .funding_agency = NULL, ...
     geom_text(aes(label = delta_lab, y = value, color = fiscal_year),
       position = position_dodge(width = 0.75),
       family = "Source Sans Pro", size = 12 / .pt,
-      vjust = -.5, na.rm = TRUE
-    ) +
+      vjust = -.5, na.rm = TRUE) +
     scale_fill_manual(values = c(usaid_lightgrey, usaid_medgrey)) +
     scale_color_manual(values = c(usaid_medgrey, usaid_darkgrey)) +
     scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
@@ -305,123 +369,159 @@ ou_patient_change_trend <- function(.path, .df, .ou, .funding_agency = NULL, ...
       panel.spacing = unit(.5, "line"),
       legend.position = "none",
       plot.title = element_markdown(),
-      strip.text = element_markdown()
-    ) +
+      strip.text = element_markdown()) +
     labs(
       x = NULL, y = NULL, fill = NULL,
-      subtitle = glue("Are we gaining or losing patients each quarter? ({df_iit$operatingunit[1]})"),
+      subtitle = glue("{.subtitle}"),
       caption = glue(" Note: patient gain/loss = TX_NET_NEW - TX_NEW
-                  {metadata$caption} | US Agency for International Development")
-    )
+                             Adults = Ages 15 +, Children = Ages < 15
+                  {metadata$caption} | US Agency for International Development"))
+}
 
-  # Summarizes the quarterly trend in IIT, RTT, and unexplained gain/loss in patients
-  ou_iit_rtt_trend <- function(.path, .df, .ou, .funding_agency = NULL, ...) {
-    # metadata
-    si_path() %>%
-      return_latest(.path) %>%
-      get_metadata()
+# Summarizes the quarterly trend in IIT, RTT, and unexplained gain/loss in patients
+ou_iit_rtt_trend <- function(.path, .df, .ou, .fiscal_year,.type,
+                             .subtitle, .funding_agency = NULL, ...) {
+  # metadata
+  si_path() %>%
+    return_latest(.path) %>%
+    get_metadata()
 
-    # add a unit test to check that required indicators exist in .df
+  # add a unit test to check that required indicators exist in .df
 
-    if (!is.null(.funding_agency)) {
-      .df <- .df %>%
-        filter(funding_agency == .funding_agency)
-
-      # how can we dynamically title the agency specific graphs?
-    }
-
-    df_iit <- .df %>%
+  # filter for type, Total or Adults/Children
+  if (.type == "Total") {
+    
+    
+    .df <- .df %>%
       filter(
         indicator %in% c(
           "TX_ML", "TX_ML_IIT", "TX_CURR",
-          "TX_NEW", "TX_NET_NEW", "TX_RTT"
-        ),
+          "TX_NEW", "TX_NET_NEW", "TX_RTT"),
         standardizeddisaggregate %in%
           c("Age/Sex/ARTNoContactReason/HIVStatus", "Total Numerator"),
         is.na(otherdisaggregate) |
           str_detect(
             otherdisaggregate,
-            "No Contact Outcome - Interruption in Treatment"
-          ),
-        !(standardizeddisaggregate == "Total Numerator" &
-          indicator == "TX_ML")
-      ) %>%
-      clean_indicator() %>%
-      group_by(operatingunit, fiscal_year, indicator) %>%
-      mutate(
-        indicator = if_else(
-          indicator == "TX_ML", "TX_ML_IIT", indicator
-        )
-      ) %>%
-      summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>%
-      reshape_msd(include_type = FALSE) %>%
-      pivot_wider(
-        names_from = indicator,
-        names_glue = "{tolower(indicator)}"
-      ) %>%
-      rowwise() %>%
-      mutate(
-        tx_curr_lag1 = as.numeric(tx_curr - tx_net_new),
-        share_rtt_curr = as.numeric(tx_rtt / tx_curr),
-        share_rtt_label = percent(share_rtt_curr),
-        tx_curr_label = comma(round(tx_curr)),
-        iit_label = comma(tx_ml_iit),
-        fiscal_year = str_extract(period, "FY[0-2]{2}"),
-        period_num = str_extract(period, "Q[1-4]"),
-        period_num = as.numeric(str_extract(period_num, "[1-4]")),
-        delta_patients = -tx_ml_iit + as.numeric(tx_rtt),
-        tx_rtt_gain = (tx_curr_lag1 + tx_new + tx_rtt),
-        unexplained_loss_gain = (tx_rtt_gain - tx_ml_iit - tx_curr),
-        gain_loss_colors = if_else(unexplained_loss_gain > 0,
-          usaid_lightgrey, "#FFFFFF"
-        )
-      ) %>%
-      ungroup() %>%
-      pivot_longer(c(tx_ml_iit, unexplained_loss_gain, tx_rtt),
-        names_to = "indicator"
-      ) %>%
-      mutate(
-        unexplained_lab = if_else(indicator == "unexplained_loss_gain",
-          comma(value), ""
-        ),
-        value = if_else(indicator == "tx_ml_iit", -value, value),
-        value_filt = if_else(indicator == "unexplained_loss_gain",
-          0, value
-        )
-      )
+            "No Contact Outcome - Interruption in Treatment"),
+        !(standardizeddisaggregate == "Total Numerator" & indicator == "TX_ML"),
+        fiscal_year %in% .fiscal_year,
+        operatingunit == .ou) %>%
+      filter(
+        standardizeddisaggregate == "Total Numerator" |
+        (standardizeddisaggregate == "Age/Sex/ARTNoContactReason/HIVStatus" &
+           indicator == "TX_ML"))
+    
+    
+  } 
+  
+  else {
+    
+    peds <- c("<01", "01-04", "05-09", "10-14")
+    adults <- c(
+      "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
+      "50-54", "55-59", "60-64", "65+")
 
-    df_iit %>%
-      ggplot(aes(x = period, fill = fct_rev(indicator))) +
-      geom_col(aes(y = value_filt), alpha = .7) +
-      facet_wrap(~fiscal_year, scales = "free_x", ncol = 1) +
-      geom_text(aes(label = unexplained_lab, y = 0, color = gain_loss_colors),
-        position = position_dodge(width = 0.75),
-        family = "Source Sans Pro", size = 12 / .pt,
-        vjust = -.5, na.rm = TRUE
-      ) +
-      scale_color_manual(values = c(usaid_medgrey, "#FFFFFF")) +
-      scale_fill_manual(values = c(
-        "tx_ml_iit" = usaid_darkgrey,
-        "tx_rtt" = usaid_lightgrey,
-        "unexplained_loss_gain" = usaid_medgrey
-      )) +
-      scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
-      scale_x_discrete(breaks = unique(df_iit$period)[grep("Q(4)", unique(df_iit$period))]) +
-      si_style_ygrid() +
-      theme(
-        panel.spacing = unit(.5, "line"),
-        # temporary since this is in grayscale
-        # legend.position = "none",
-        plot.title = element_markdown(),
-        strip.text = element_markdown()
-      ) +
-      labs(
-        x = NULL, y = NULL, fill = NULL,
-        subtitle = glue("IIT, RTT, and Unexplained Loss/Gain {df_iit$operatingunit[1]}"),
-        caption = glue(" Note: tx_ml_iit = TX_ML where patient experienced IIT;
-                         tx_rtt_gain = tx_curr_lag1 + tx_new + tx_rtt;
-                         unexplained_loss_gain =  tx_rtt_gain - tx_ml_iit  - tx_curr
-                  {metadata$caption} | US Agency for International Development")
-      )
+    .df <- .df %>%
+      filter(
+        indicator %in% c(
+          "TX_ML", "TX_ML_IIT", "TX_CURR",
+          "TX_NEW", "TX_NET_NEW", "TX_RTT"),
+        standardizeddisaggregate %in%
+          c("Age/Sex/ARTNoContactReason/HIVStatus", "Total Numerator"),
+        is.na(otherdisaggregate) |
+          str_detect(otherdisaggregate,"No Contact Outcome - Interruption in Treatment"),
+        !(standardizeddisaggregate == "Total Numerator" &
+          indicator == "TX_ML"),
+        fiscal_year %in% .fiscal_year,
+        operatingunit == .ou) %>%
+      mutate(
+        type = case_when(
+          standardizeddisaggregate == "Total Numerator" ~ "Total",
+          standardizeddisaggregate == "Age/Sex/ARTNoContactReason/HIVStatus" &
+            ageasentered %in% adults ~ "Adults",
+          standardizeddisaggregate == "Age/Sex/ARTNoContactReason/HIVStatus" &
+            ageasentered %in% peds ~ "Pediatric")) %>%
+      filter(type %in% c("Total", glue("{.type}")))
   }
+  
+  if (!is.null(.funding_agency)) {
+    .df <- .df %>%
+      filter(funding_agency == .funding_agency)
+    
+    # how can we dynamically title the agency specific graphs?
+  }
+
+  df_iit <- .df %>%
+    clean_indicator() %>%
+    group_by(operatingunit, fiscal_year, indicator) %>%
+    mutate(
+      indicator = if_else(
+        indicator == "TX_ML", "TX_ML_IIT", indicator)) %>%
+    summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>%
+    reshape_msd(include_type = FALSE) %>%
+    pivot_wider(
+      names_from = indicator,
+      names_glue = "{tolower(indicator)}") %>%
+    rowwise() %>%
+    mutate(
+      tx_curr_lag1 = as.numeric(tx_curr - tx_net_new),
+      share_rtt_curr = as.numeric(tx_rtt / tx_curr),
+      share_rtt_label = percent(share_rtt_curr),
+      tx_curr_label = comma(round(tx_curr)),
+      iit_label = comma(tx_ml_iit),
+      fiscal_year = str_extract(period, "FY[0-2]{2}"),
+      period_num = str_extract(period, "Q[1-4]"),
+      period_num = as.numeric(str_extract(period_num, "[1-4]")),
+      delta_patients = -tx_ml_iit + as.numeric(tx_rtt),
+      tx_rtt_gain = (tx_curr_lag1 + tx_new + tx_rtt),
+      unexplained_loss_gain = (tx_rtt_gain - tx_ml_iit - tx_curr),
+      gain_loss_colors = if_else(unexplained_loss_gain > 0,
+        usaid_lightgrey, "#FFFFFF")) %>%
+    ungroup() %>%
+    pivot_longer(c(tx_ml_iit, unexplained_loss_gain, tx_rtt),
+      names_to = "indicator") %>%
+    mutate(
+      unexplained_lab = if_else(indicator == "unexplained_loss_gain",
+        comma(value), ""),
+      value = if_else(indicator == "tx_ml_iit", -value, value),
+      value_filt = if_else(indicator == "unexplained_loss_gain",
+        0, value))
+
+  df_iit %>%
+    ggplot(aes(x = period, fill = fct_rev(indicator))) +
+    geom_col(aes(y = value_filt), alpha = .7) +
+    facet_wrap(~fiscal_year, scales = "free_x", ncol = 1) +
+    geom_text(aes(label = unexplained_lab, y = 0, color = gain_loss_colors),
+      position = position_dodge(width = 0.75),
+      family = "Source Sans Pro", size = 12 / .pt,
+      vjust = -.5, na.rm = TRUE) +
+    scale_color_manual(values = c(usaid_medgrey, "#FFFFFF")) +
+    scale_fill_manual(values = c(
+      "tx_ml_iit" = usaid_darkgrey,
+      "tx_rtt" = usaid_lightgrey,
+      "unexplained_loss_gain" = usaid_medgrey)) +
+    scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
+    scale_x_discrete(breaks = unique(df_iit$period)[grep("Q(4)", unique(df_iit$period))]) +
+    si_style_ygrid() +
+    theme(
+      panel.spacing = unit(.5, "line"),
+      # temporary since this is in grayscale
+      legend.position = "none",
+      plot.title = element_markdown(),
+      strip.text = element_markdown()) +
+    labs(
+      x = NULL, y = NULL, fill = NULL,
+      subtitle = glue("{.subtitle}"),
+      caption = glue(" Notes: 
+                        tx_ml_iit = TX_ML where patient experienced IIT;
+                        tx_rtt_gain = tx_curr_lag1 + tx_new + tx_rtt;
+                        unexplained_loss_gain =  tx_rtt_gain - tx_ml_iit  - tx_curr
+                   Darker gray = tx_ml_iit, Lighter gray = tx_rtt,
+                   Number displayed is the unexplained loss or gain
+                   Adults = Ages 15 +, Children = Ages < 15
+                  {metadata$caption} | US Agency for International Development"))
 }
+
+# Testing ----------------------------------------------------------------------
+
+# VLC/VLS ----------------------------------------------------------------------
