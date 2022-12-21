@@ -99,11 +99,6 @@ ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type,
   }
 
   df_new <- .df %>%
-    filter(
-      indicator %in% .indicator,
-      operatingunit == .ou,
-      fiscal_year %in% .fiscal_year) %>%
-    pluck_totals() %>%
     group_by(operatingunit, indicator, fiscal_year) %>%
     summarise(across(c(starts_with("qtr"), cumulative, targets),
       sum,
