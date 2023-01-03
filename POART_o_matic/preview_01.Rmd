@@ -1,0 +1,92 @@
+---
+title: "Cumulative Achievement"
+output: 
+  flexdashboard::flexdashboard:
+    vertical_layout: fill
+    orientation: rows
+params:
+  msd_path_ou: msd_path_ou
+  selected_indicator: selected_indicator
+  selected_ou: selected_OU
+  selected_agency: selected_agency
+  selected_years: selected_years
+  selected_type: selected_type
+---
+
+```{r debug}
+# 
+# library(tidyverse)
+# library(extrafont)
+# library(gagglr)
+# library(glue)
+# library(scales)
+# library(stringr)
+# library(ggtext)
+# library(tidytext)
+# library(cowplot)
+# library(janitor)
+# 
+# # Example Parameters for debugging purposes
+# 
+# selected_ou <- "South Sudan"
+# selected_indicator <- "TX_CURR"
+# selected_years <- c("2021", "2022")
+# selected_agency <- "USAID"
+# selected_type <- "Total"
+# output_path <- "Images"
+# 
+# source <- si_path()
+# 
+# si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM")
+# 
+# template_list <- list.files(path = here::here("POART_o_matic/templates"),
+#                             full.names = FALSE,
+#                             pattern = "pptx")
+
+```
+
+```{r global_vars, echo=FALSE, message=FALSE}
+
+ref_id <- "4c86a407"
+loom_script <- "functions/00_loom.R"
+
+source(loom_script)
+
+```
+
+```{r get_data, echo=FALSE, message=FALSE}
+
+# This assumes the user has their MSD path setup correctly and that they have
+# at least one OU by IM file in that folder, this can be generalized
+# to use different datasets but it works at the highest level of detail MSD
+
+df_ou <- si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM") %>%
+  read_msd()
+
+# metadata
+si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM") %>%
+  get_metadata()
+
+```
+
+```{r viz}
+
+    ou_achv_cumul(
+      .path = "MER_Structured_Datasets_OU_IM",
+      .df = df_ou,
+      .indicator = selected_indicator,
+      .ou = selected_ou,
+      .subtitle = "What is the cumulative achievement of TX_CURR (All Ages)
+      against quarterly targets?",
+      # choose up to 2
+      .fiscal_year = selected_years, 
+      .type = selected_type)
+    
+    # si_save(paste0(metadata$curr_pd, "TX_CURR_summary_SSD_Total.png"),
+    #   path = output_path,
+    #   scale = 0.8)
+
+```
