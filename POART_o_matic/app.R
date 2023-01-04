@@ -4,8 +4,7 @@ pacman::p_load(
   "stringr", "janitor", "rvg", "glue", "withr","writexl", 
   "shinyWidgets", "shinydashboard","shinydashboardPlus", 
   "plotly", "shinybusy", "flexdashboard","readxl", "ggtext", 
-  "tidytext", "cowplot", "gagglr"
-)
+  "tidytext", "cowplot", "gagglr")
 
 # List of inputs used in the app -----------------------------------------------
 
@@ -25,7 +24,7 @@ inputs <- list(
   # list of functions used by app
   functions = list(
     clean = "POART-o-matic/functions/00_loom.R",
-    preview_rmd = "POART-o-matic/preview_01.rmd",
+    preview_rmd = "POART-o-matic/preview_01.Rmd",
     generate_rmd = "POART-o-matic/generate_01.rmd")
 )
 
