@@ -122,12 +122,12 @@ ui <- function() {
             tags$br()), # close first tab
   # "Quarterly Achievement"
           tabPanel("Quarterly Achievement",
-          # select template
-          shinyWidgets::pickerInput(
-            inputId = "select_template",
-            label = "Select a template file:",
-            choices = template_list,
-            options = list(size = 8)),
+                   # select OU
+                   shinyWidgets::pickerInput(
+                     inputId = "select_ou",
+                     label = "Select an operational unit (OU):",
+                     choices = glamr::pepfar_country_list,
+                     options = list(size = 8)),
                    # select an indicator
                    pickerInput(
                      inputId = "select_indicator",
@@ -178,12 +178,12 @@ ui <- function() {
           tags$br()), # close second tab panel
    # "Quarterly IIT and RTT"
         tabPanel("Quarterly IIT and RTT",
-        # select template
-        shinyWidgets::pickerInput(
-          inputId = "select_template",
-          label = "Select a template file:",
-          choices = template_list,
-          options = list(size = 8)),
+                 # select OU
+                 shinyWidgets::pickerInput(
+                   inputId = "select_ou",
+                   label = "Select an operational unit (OU):",
+                   choices = glamr::pepfar_country_list,
+                   options = list(size = 8)),
                  # select a year
                  pickerInput(
                    inputId = "select_year",
@@ -225,11 +225,11 @@ ui <- function() {
         tags$br()), # close third tab panel
     # "Quarterly Patient Delta"
         tabPanel("Quarterly Patient Delta",
-                 # select template
+                 # select OU
                  shinyWidgets::pickerInput(
-                   inputId = "select_template",
-                   label = "Select a template file:",
-                   choices = template_list,
+                   inputId = "select_ou",
+                   label = "Select an operational unit (OU):",
+                   choices = glamr::pepfar_country_list,
                    options = list(size = 8)),
                  # select a year
                  pickerInput(
