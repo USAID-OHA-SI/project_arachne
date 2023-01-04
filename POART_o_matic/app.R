@@ -72,6 +72,42 @@ ui <- function() {
               label = "Select an operational unit (OU):",
               choices = glamr::pepfar_country_list,
               options = list(size = 8)),
+            # select an indicator
+            pickerInput(
+              inputId = "select_indicator",
+              label = "Select an indicator:",
+              choices = c("TX_CURR", "TX_NEW"),
+              options = list(`actions-box` = TRUE, 
+                             size = 8,
+                             `selected-text-format` = "count > 3"), 
+              multiple = FALSE),
+            # select a year
+            pickerInput(
+              inputId = "select_year",
+              label = "Select a year(s):",
+              choices = c("2023", "2022", "2021", "2020"),
+              options = list(`actions-box` = TRUE, 
+                             size = 8,
+                             `selected-text-format` = "count > 3"), 
+              multiple = TRUE),
+            # select an agency
+            pickerInput(
+              inputId = "select_agency",
+              label = "Select an agency/agencies:",
+              choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+              options = list(`actions-box` = TRUE, 
+                             size = 8,
+                             `selected-text-format` = "count > 3"), 
+              multiple = TRUE),
+            # select a type
+            pickerInput(
+              inputId = "select_type",
+              label = "Select a type of data:",
+              choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+              options = list(`actions-box` = TRUE, 
+                             size = 8,
+                             `selected-text-format` = "count > 3"), 
+              multiple = FALSE),
             width = 10,
             tags$br(),
             # Figure Preview button
@@ -92,6 +128,42 @@ ui <- function() {
             label = "Select a template file:",
             choices = template_list,
             options = list(size = 8)),
+                   # select an indicator
+                   pickerInput(
+                     inputId = "select_indicator",
+                     label = "Select an indicator:",
+                     choices = c("TX_CURR", "TX_NEW"),
+                     options = list(`actions-box` = TRUE, 
+                                    size = 8,
+                                    `selected-text-format` = "count > 3"), 
+                     multiple = FALSE),
+                   # select a year
+                   pickerInput(
+                     inputId = "select_year",
+                     label = "Select a year(s):",
+                     choices = c("2023", "2022", "2021", "2020"),
+                     options = list(`actions-box` = TRUE, 
+                                    size = 8,
+                                    `selected-text-format` = "count > 3"), 
+                     multiple = TRUE),
+                   # select an agency
+                   pickerInput(
+                     inputId = "select_agency",
+                     label = "Select an agency/agencies:",
+                     choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+                     options = list(`actions-box` = TRUE, 
+                                    size = 8,
+                                    `selected-text-format` = "count > 3"), 
+                     multiple = TRUE),
+                   # select a type
+                   pickerInput(
+                     inputId = "select_type",
+                     label = "Select a type of data:",
+                     choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+                     options = list(`actions-box` = TRUE, 
+                                    size = 8,
+                                    `selected-text-format` = "count > 3"), 
+                     multiple = FALSE),
           width = 4,
           tags$br(),
           # Figure Preview button
@@ -112,6 +184,33 @@ ui <- function() {
           label = "Select a template file:",
           choices = template_list,
           options = list(size = 8)),
+                 # select a year
+                 pickerInput(
+                   inputId = "select_year",
+                   label = "Select a year(s):",
+                   choices = c("2023", "2022", "2021", "2020"),
+                   options = list(`actions-box` = TRUE, 
+                                  size = 8,
+                                  `selected-text-format` = "count > 3"), 
+                   multiple = TRUE),
+                 # select an agency
+                 pickerInput(
+                   inputId = "select_agency",
+                   label = "Select an agency/agencies:",
+                   choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+                   options = list(`actions-box` = TRUE, 
+                                  size = 8,
+                                  `selected-text-format` = "count > 3"), 
+                   multiple = TRUE),
+                 # select a type
+                 pickerInput(
+                   inputId = "select_type",
+                   label = "Select a type of data:",
+                   choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+                   options = list(`actions-box` = TRUE, 
+                                  size = 8,
+                                  `selected-text-format` = "count > 3"), 
+                   multiple = FALSE),
         width = 4,
         tags$br(),
         # Figure Preview button
@@ -132,6 +231,33 @@ ui <- function() {
                    label = "Select a template file:",
                    choices = template_list,
                    options = list(size = 8)),
+                 # select a year
+                 pickerInput(
+                   inputId = "select_year",
+                   label = "Select a year(s):",
+                   choices = c("2023", "2022", "2021", "2020"),
+                   options = list(`actions-box` = TRUE, 
+                                  size = 8,
+                                  `selected-text-format` = "count > 3"), 
+                   multiple = TRUE),
+                 # select an agency
+                 pickerInput(
+                   inputId = "select_agency",
+                   label = "Select an agency/agencies:",
+                   choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+                   options = list(`actions-box` = TRUE, 
+                                  size = 8,
+                                  `selected-text-format` = "count > 3"), 
+                   multiple = TRUE),
+                 # select a type
+                 pickerInput(
+                   inputId = "select_type",
+                   label = "Select a type of data:",
+                   choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+                   options = list(`actions-box` = TRUE, 
+                                  size = 8,
+                                  `selected-text-format` = "count > 3"), 
+                   multiple = FALSE),
                  width = 4,
                  tags$br(),
                  # Figure Preview button
