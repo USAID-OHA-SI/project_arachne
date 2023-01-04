@@ -69,7 +69,7 @@ ui <- function() {
             shinyWidgets::pickerInput(
               inputId = "select_ou",
               label = "Select an operational unit (OU):",
-              choices = glamr::pepfar_country_list,
+              choices = unique(glamr::pepfar_country_list$operatingunit),
               options = list(size = 8)),
             # select an indicator
             pickerInput(
@@ -125,7 +125,7 @@ ui <- function() {
                    shinyWidgets::pickerInput(
                      inputId = "select_ou",
                      label = "Select an operational unit (OU):",
-                     choices = glamr::pepfar_country_list,
+                     choices = unique(glamr::pepfar_country_list$operatingunit),
                      options = list(size = 8)),
                    # select an indicator
                    pickerInput(
@@ -181,7 +181,7 @@ ui <- function() {
                  shinyWidgets::pickerInput(
                    inputId = "select_ou",
                    label = "Select an operational unit (OU):",
-                   choices = glamr::pepfar_country_list,
+                   choices = unique(glamr::pepfar_country_list$operatingunit),
                    options = list(size = 8)),
                  # select a year
                  pickerInput(
@@ -228,7 +228,7 @@ ui <- function() {
                  shinyWidgets::pickerInput(
                    inputId = "select_ou",
                    label = "Select an operational unit (OU):",
-                   choices = glamr::pepfar_country_list,
+                   choices = unique(glamr::pepfar_country_list$operatingunit),
                    options = list(size = 8)),
                  # select a year
                  pickerInput(
