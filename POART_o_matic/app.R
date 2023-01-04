@@ -4,7 +4,7 @@ pacman::p_load(
   "stringr", "janitor", "rvg", "glue", "withr","writexl", 
   "shinyWidgets", "shinydashboard","shinydashboardPlus", 
   "plotly", "shinybusy", "flexdashboard","readxl", "ggtext", 
-  "tidytext", "cowplot"
+  "tidytext", "cowplot", "gagglr"
 )
 
 # List of inputs used in the app -----------------------------------------------
