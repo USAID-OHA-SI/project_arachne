@@ -7,9 +7,9 @@ output:
 params:
   msd_path_ou: msd_path_ou
   selected_indicator: selected_indicator
-  selected_ou: selected_OU
+  selected_ou: selected_ou
   selected_agency: selected_agency
-  selected_years: selected_years
+  selected_years: selected_year
   selected_type: selected_type
 ---
 
