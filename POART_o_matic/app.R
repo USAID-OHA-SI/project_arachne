@@ -32,9 +32,6 @@ inputs <- list(
 # Lists of data files available to use in app ----------------------------------
 
 # Create lists of templates available for data ---------------------------------
-template_list <- list.files(path = here::here("POART_o_matic/templates"),
-                            full.names = FALSE,
-                            pattern = "pptx")
 
 # Location of output data
 
@@ -69,11 +66,11 @@ ui <- function() {
           id = "select_options",
     # "Cumulative Achievement"
           tabPanel("Cumulative Achievement",
-            # select template
+            # select OU
             shinyWidgets::pickerInput(
-              inputId = "select_template",
-              label = "Select a template file:",
-              choices = template_list,
+              inputId = "select_ou",
+              label = "Select an operational unit (OU):",
+              choices = glamr::pepfar_country_list,
               options = list(size = 8)),
             width = 10,
             tags$br(),
