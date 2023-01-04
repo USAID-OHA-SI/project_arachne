@@ -93,7 +93,7 @@ ui <- function() {
             pickerInput(
               inputId = "select_agency",
               label = "Select an agency/agencies:",
-              choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+              choices = c("USAID", "CDC", "DOD", "Peace Corps"),
               options = list(`actions-box` = TRUE, 
                              size = 8,
                              `selected-text-format` = "count > 3"), 
