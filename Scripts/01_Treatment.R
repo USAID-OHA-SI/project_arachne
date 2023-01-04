@@ -415,7 +415,6 @@ ssd_tx_curr_subnat <- df_nat$TX_CURR_SUBNAT
     ou_patient_delta(
       .path = msd_path_ou,
       .df = df_ou,
-      .indicator = "TX_CURR",
       .ou = selected_ou,
       .fiscal_year = selected_years,
       .funding_agency = selected_agency,
