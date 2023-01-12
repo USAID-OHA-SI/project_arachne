@@ -1,19 +1,20 @@
 ---
 title: "Cumulative Achievement"
 output: 
-  flexdashboard::flex_dashboard:
+  flexdashboard::flexdashboard:
     vertical_layout: fill
     orientation: rows
 params:
-  selected_indicator: param_list$selected_indicator
-  selected_ou: param_list$selected_ou
-  selected_agency: param_list$selected_agency
-  selected_years: param_list$selected_year
-  selected_type: param_list$selected_type
+  msd_path_ou: msd_path_ou
+  selected_indicator: selected_indicator
+  selected_ou: selected_ou
+  selected_agency: selected_agency
+  selected_years: selected_year
+  selected_type: selected_type
 ---
 
-```{r debug, echo=FALSE, message=FALSE}
-# # 
+```{r debug}
+# 
 # library(tidyverse)
 # library(extrafont)
 # library(gagglr)
@@ -24,14 +25,15 @@ params:
 # library(tidytext)
 # library(cowplot)
 # library(janitor)
-
+# 
 # # Example Parameters for debugging purposes
 # 
-selected_ou <- "South Sudan"
-selected_indicator <- "TX_CURR"
-selected_years <- c("2021", "2022")
-selected_agency <- "USAID"
-selected_type <- "Total"
+# selected_ou <- "South Sudan"
+# selected_indicator <- "TX_CURR"
+# selected_years <- c("2021", "2022")
+# selected_agency <- "USAID"
+# selected_type <- "Total"
+# output_path <- "Images"
 # 
 # source <- si_path()
 # 
@@ -42,164 +44,39 @@ selected_type <- "Total"
 #                             full.names = FALSE,
 #                             pattern = "pptx")
 
-# This assumes the user has their MSD path setup correctly and that they have
-# at least one OU by IM file in that folder, this can be generalized
-# to use different datasets but it works at the highest level of detail MSD
-
-# df_ou <- si_path() %>%
-#   return_latest("MER_Structured_Datasets_OU_IM") %>%
-#   read_msd()
-
-# # metadata
-# si_path() %>%
-#   return_latest("MER_Structured_Datasets_OU_IM") %>%
-#   get_metadata()
-
 ```
 
 ```{r global_vars, echo=FALSE, message=FALSE}
 
 ref_id <- "4c86a407"
+loom_script <- "functions/00_loom.R"
 
-ou_achv_cumul <- function(.path, .indicator, .ou, .fiscal_year, .type, 
-                          .subtitle, .funding_agency = NULL, ...) {
-  
-  df <- si_path() %>%
-    return_latest(.path) %>%
-    read_msd()
-  
-  # this seems to only work interactively and I wasn't able to use 
-  # the returned metadata object within the function
-  
-  # si_path() %>%
-  #    return_latest(.path) %>%
-  #    get_metadata()
-  
-  curr_pd <- source_info(si_path() %>% return_latest("MER_Structured_Datasets_OU_IM"),
-                         return = "period")
-  
-  curr_fy_lab <- source_info(si_path() %>% return_latest("MER_Structured_Datasets_OU_IM"),
-            return = "fiscal_year_label")
-  
-  qtrs_to_keep <- curr_pd %>%
-    convert_qtr_to_date() %>%
-    seq.Date(by = "-3 months", length = 6) %>%
-    convert_date_to_qtr()
-  
-  # filter for type, Total or Adults/Children
-  if (.type == "Total") {
-    
-    df <- df %>%
-      filter(
-        indicator %in% .indicator,
-        operatingunit == .ou,
-        fiscal_year %in% .fiscal_year) %>%
-      resolve_knownissues() %>%
-      pluck_totals()}
-  
-  else {
-    
-    peds <- c("<01", "01-04", "05-09", "10-14")
-    adults <- c(
-      "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
-      "50-54", "55-59", "60-64", "65+")
-    
-    df <- df %>%
-      filter(
-        indicator %in% .indicator,
-        operatingunit == .ou,
-        fiscal_year %in% .fiscal_year, 
-        (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
-          (standardizeddisaggregate == "Total Numerator") |
-          (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)) %>%
-      resolve_knownissues() %>%
-      mutate(type = case_when(
-        standardizeddisaggregate == "Total Numerator" ~ "Total",
-        standardizeddisaggregate == "Age/Sex/HIVStatus" &
-          ageasentered %in% adults ~ "Adults",
-        standardizeddisaggregate == "Age/Sex/HIVStatus" &
-          ageasentered %in% peds ~ "Pediatric")) %>%
-      filter(type %in% c("Total", .type))
-    
-  }
-  
-  # filter for agency 
-  
-  if (!is.null(.funding_agency)) {
-    df <- df %>%
-      filter(funding_agency == .funding_agency)
-  }
-  
-  df_new <- df %>%
-    resolve_knownissues() %>%
-    group_by(operatingunit, indicator, fiscal_year) %>%
-    summarise(across(c(starts_with("qtr"), cumulative, targets),
-                     sum,
-                     na.rm = TRUE), .groups = "keep") %>%
-    reshape_msd(direction = "quarters") %>%
-    adorn_achievement() %>%
-    arrange(period) %>%
-    mutate(
-      period_num = as.numeric(str_sub(period, -1)),
-      qtr_target = targets / ((4 - period_num) + 1),
-      fiscal_year2 = str_extract(period, "FY[1-2][0-9]"),
-      results_lab = case_when(period == curr_pd |
-                                fiscal_year2 == curr_fy_lab ~
-                                glue("{comma(results_cumulative)}")),
-      achv_pct_label = case_when(period == curr_pd |
-                                   fiscal_year2 == curr_fy_lab ~
-                                   glue("{percent(achievement_qtrly)}")),
-      ind_period = str_c(indicator, period, sep = "_")
-    ) %>%
-    filter(period %in% qtrs_to_keep)
-  
-  df_new %>%
-    ggplot(aes(x = period)) +
-    geom_col(aes(y = qtr_target),
-             alpha = .7, fill = usaid_lightgrey,
-             position = position_dodge(width = .65)
-    ) +
-    geom_col(aes(y = results_cumulative),
-             alpha = .7, fill = usaid_medgrey,
-             position = position_dodge(width = .65)
-    ) +
-    geom_text(aes(label = achv_pct_label, y = 0),
-              position = position_dodge(width = 0.75), color = "#FFFFFF",
-              family = "Source Sans Pro", size = 12 / .pt,
-              vjust = -.5, na.rm = TRUE
-    ) +
-    geom_text(aes(label = results_lab, y = results_cumulative),
-              position = position_dodge(width = 0.75), color = usaid_medgrey,
-              family = "Source Sans Pro", size = 12 / .pt,
-              vjust = -.5, na.rm = TRUE
-    ) +
-    scale_x_discrete(breaks = unique(df_new$period)[grep("Q(2|4)", unique(df_new$period))]) +
-    # how to dynamically add just a little excess to the
-    # max. value to accommodate the geom_text?
-    scale_y_continuous(
-      limits = c(0, max(df_new$qtr_target) + 5000),
-      label = label_number(scale_cut = cut_short_scale())
-    ) +
-    labs(
-      x = NULL, y = NULL, fill = NULL,
-      subtitle = glue("{.subtitle}"),
-      caption = glue("Source: {curr_pd} MSD | Ref id: {ref_id} | US Agency for International Development")
-    ) +
-    si_style_yline() +
-    theme(
-      panel.spacing = unit(.5, "line"),
-      legend.position = "none",
-      plot.title = element_markdown(),
-      strip.text = element_markdown()
-    )
-}
+source(loom_script)
 
 ```
 
-```{r viz, echo=FALSE, message=FALSE}
+```{r get_data, echo=FALSE, message=FALSE}
 
-cumul_achv <- ou_achv_cumul(
+# This assumes the user has their MSD path setup correctly and that they have
+# at least one OU by IM file in that folder, this can be generalized
+# to use different datasets but it works at the highest level of detail MSD
+
+df_ou <- si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM") %>%
+  read_msd()
+
+# metadata
+si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM") %>%
+  get_metadata()
+
+```
+
+```{r viz}
+
+    ou_achv_cumul(
       .path = "MER_Structured_Datasets_OU_IM",
+      .df = df_ou,
       .indicator = selected_indicator,
       .ou = selected_ou,
       .subtitle = "What is the cumulative achievement of TX_CURR (All Ages)
@@ -207,7 +84,9 @@ cumul_achv <- ou_achv_cumul(
       # choose up to 2
       .fiscal_year = selected_years, 
       .type = selected_type)
-
-cumul_achv
+    
+    # si_save(paste0(metadata$curr_pd, "TX_CURR_summary_SSD_Total.png"),
+    #   path = output_path,
+    #   scale = 0.8)
 
 ```
