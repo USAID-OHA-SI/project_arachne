@@ -4,7 +4,7 @@ pacman::p_load(
   "stringr", "janitor", "rvg", "glue", "withr","writexl", 
   "shinyWidgets", "shinydashboard","shinydashboardPlus", 
   "plotly", "shinybusy", "flexdashboard","readxl", "ggtext", 
-  "tidytext", "cowplot", "gagglr")
+  "tidytext", "cowplot", "gagglr", "rmarkdown")
 
 # List of inputs used in the app -----------------------------------------------
 
@@ -57,13 +57,13 @@ ui <- function() {
           spin = "fading-circle",
           timeout = 100,
           position = "top-left"),
-        # Initialize tabs
-        # TODO: setup options for user to select an OU, indicator, years, 
-        #       agency, and type
-        #       remove option to select a template
         tabsetPanel(
           id = "select_options",
     # "Cumulative Achievement"
+    # Buttons show up correctly but don't currently impact the output,
+    # as of now all parameters are being set in the preview_01.Rmd file
+    # and I need to learn how to get the parameters indicated in the 
+    # buttons into param_list that the preview file uses.
           tabPanel("Cumulative Achievement",
             # select OU
             shinyWidgets::pickerInput(
@@ -76,36 +76,28 @@ ui <- function() {
               inputId = "select_indicator",
               label = "Select an indicator:",
               choices = c("TX_CURR", "TX_NEW"),
-              options = list(`actions-box` = TRUE, 
-                             size = 8,
-                             `selected-text-format` = "count > 3"), 
+              options = list(size = 8), 
               multiple = FALSE),
             # select a year
             pickerInput(
               inputId = "select_year",
               label = "Select a year(s):",
               choices = c("2023", "2022", "2021", "2020"),
-              options = list(`actions-box` = TRUE, 
-                             size = 8,
-                             `selected-text-format` = "count > 3"), 
+              options = list(size = 8), 
               multiple = TRUE),
             # select an agency
             pickerInput(
               inputId = "select_agency",
               label = "Select an agency/agencies:",
               choices = c("USAID", "CDC", "DOD", "Peace Corps"),
-              options = list(`actions-box` = TRUE, 
-                             size = 8,
-                             `selected-text-format` = "count > 3"), 
+              options = list(size = 8), 
               multiple = TRUE),
             # select a type
             pickerInput(
               inputId = "select_type",
               label = "Select a type of data:",
               choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
-              options = list(`actions-box` = TRUE, 
-                             size = 8,
-                             `selected-text-format` = "count > 3"), 
+              options = list(size = 8), 
               multiple = FALSE),
             width = 10,
             tags$br(),
@@ -118,158 +110,159 @@ ui <- function() {
               inputId = "generate_slide",
               label = "Generate Slide"),
             width = 4,
-            tags$br()), # close first tab
-  # "Quarterly Achievement"
-          tabPanel("Quarterly Achievement",
-                   # select OU
-                   shinyWidgets::pickerInput(
-                     inputId = "select_ou",
-                     label = "Select an operational unit (OU):",
-                     choices = unique(glamr::pepfar_country_list$operatingunit),
-                     options = list(size = 8)),
-                   # select an indicator
-                   pickerInput(
-                     inputId = "select_indicator",
-                     label = "Select an indicator:",
-                     choices = c("TX_CURR", "TX_NEW"),
-                     options = list(`actions-box` = TRUE, 
-                                    size = 8,
-                                    `selected-text-format` = "count > 3"), 
-                     multiple = FALSE),
-                   # select a year
-                   pickerInput(
-                     inputId = "select_year",
-                     label = "Select a year(s):",
-                     choices = c("2023", "2022", "2021", "2020"),
-                     options = list(`actions-box` = TRUE, 
-                                    size = 8,
-                                    `selected-text-format` = "count > 3"), 
-                     multiple = TRUE),
-                   # select an agency
-                   pickerInput(
-                     inputId = "select_agency",
-                     label = "Select an agency/agencies:",
-                     choices = c("USAID", "Peace Corps", "CDC", "DOD"),
-                     options = list(`actions-box` = TRUE, 
-                                    size = 8,
-                                    `selected-text-format` = "count > 3"), 
-                     multiple = TRUE),
-                   # select a type
-                   pickerInput(
-                     inputId = "select_type",
-                     label = "Select a type of data:",
-                     choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
-                     options = list(`actions-box` = TRUE, 
-                                    size = 8,
-                                    `selected-text-format` = "count > 3"), 
-                     multiple = FALSE),
-          width = 4,
-          tags$br(),
-          # Figure Preview button
-          actionButton(
-            inputId = "figure_preview",
-            label = "Preview Figure"),
-          # Generate slide button
-          actionButton(
-            inputId = "generate_slide",
-            label = "Generate Slide"),
-          width = 4,
-          tags$br()), # close second tab panel
-   # "Quarterly IIT and RTT"
-        tabPanel("Quarterly IIT and RTT",
-                 # select OU
-                 shinyWidgets::pickerInput(
-                   inputId = "select_ou",
-                   label = "Select an operational unit (OU):",
-                   choices = unique(glamr::pepfar_country_list$operatingunit),
-                   options = list(size = 8)),
-                 # select a year
-                 pickerInput(
-                   inputId = "select_year",
-                   label = "Select a year(s):",
-                   choices = c("2023", "2022", "2021", "2020"),
-                   options = list(`actions-box` = TRUE, 
-                                  size = 8,
-                                  `selected-text-format` = "count > 3"), 
-                   multiple = TRUE),
-                 # select an agency
-                 pickerInput(
-                   inputId = "select_agency",
-                   label = "Select an agency/agencies:",
-                   choices = c("USAID", "Peace Corps", "CDC", "DOD"),
-                   options = list(`actions-box` = TRUE, 
-                                  size = 8,
-                                  `selected-text-format` = "count > 3"), 
-                   multiple = TRUE),
-                 # select a type
-                 pickerInput(
-                   inputId = "select_type",
-                   label = "Select a type of data:",
-                   choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
-                   options = list(`actions-box` = TRUE, 
-                                  size = 8,
-                                  `selected-text-format` = "count > 3"), 
-                   multiple = FALSE),
-        width = 4,
-        tags$br(),
-        # Figure Preview button
-        actionButton(
-          inputId = "figure_preview",
-          label = "Preview Figure"),
-        # Generate slide button
-        actionButton(
-          inputId = "generate_slide",
-          label = "Generate Slide"),
-        width = 4,
-        tags$br()), # close third tab panel
-    # "Quarterly Patient Delta"
-        tabPanel("Quarterly Patient Delta",
-                 # select OU
-                 shinyWidgets::pickerInput(
-                   inputId = "select_ou",
-                   label = "Select an operational unit (OU):",
-                   choices = unique(glamr::pepfar_country_list$operatingunit),
-                   options = list(size = 8)),
-                 # select a year
-                 pickerInput(
-                   inputId = "select_year",
-                   label = "Select a year(s):",
-                   choices = c("2023", "2022", "2021", "2020"),
-                   options = list(`actions-box` = TRUE, 
-                                  size = 8,
-                                  `selected-text-format` = "count > 3"), 
-                   multiple = TRUE),
-                 # select an agency
-                 pickerInput(
-                   inputId = "select_agency",
-                   label = "Select an agency/agencies:",
-                   choices = c("USAID", "Peace Corps", "CDC", "DOD"),
-                   options = list(`actions-box` = TRUE, 
-                                  size = 8,
-                                  `selected-text-format` = "count > 3"), 
-                   multiple = TRUE),
-                 # select a type
-                 pickerInput(
-                   inputId = "select_type",
-                   label = "Select a type of data:",
-                   choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
-                   options = list(`actions-box` = TRUE, 
-                                  size = 8,
-                                  `selected-text-format` = "count > 3"), 
-                   multiple = FALSE),
-                 width = 4,
-                 tags$br(),
-                 # Figure Preview button
-                 actionButton(
-                   inputId = "figure_preview",
-                   label = "Preview Figure"),
-                 # Generate slide button
-                 actionButton(
-                   inputId = "generate_slide",
-                   label = "Generate Slide"),
-                 width = 4,
-                 tags$br())), 
-# tab box
+            tags$br())),
+            # close first tab
+   # # "Quarterly Achievement" ---------------------------------------------------
+   #        tabPanel("Quarterly Achievement",
+   #                 # select OU
+   #                 shinyWidgets::pickerInput(
+   #                   inputId = "select_ou",
+   #                   label = "Select an operational unit (OU):",
+   #                   choices = unique(glamr::pepfar_country_list$operatingunit),
+   #                   options = list(size = 8)),
+   #                 # select an indicator
+   #                 pickerInput(
+   #                   inputId = "select_indicator",
+   #                   label = "Select an indicator:",
+   #                   choices = c("TX_CURR", "TX_NEW"),
+   #                   options = list(`actions-box` = TRUE, 
+   #                                  size = 8,
+   #                                  `selected-text-format` = "count > 3"), 
+   #                   multiple = FALSE),
+   #                 # select a year
+   #                 pickerInput(
+   #                   inputId = "select_year",
+   #                   label = "Select a year(s):",
+   #                   choices = c("2023", "2022", "2021", "2020"),
+   #                   options = list(`actions-box` = TRUE, 
+   #                                  size = 8,
+   #                                  `selected-text-format` = "count > 3"), 
+   #                   multiple = TRUE),
+   #                 # select an agency
+   #                 pickerInput(
+   #                   inputId = "select_agency",
+   #                   label = "Select an agency/agencies:",
+   #                   choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+   #                   options = list(`actions-box` = TRUE, 
+   #                                  size = 8,
+   #                                  `selected-text-format` = "count > 3"), 
+   #                   multiple = TRUE),
+   #                 # select a type
+   #                 pickerInput(
+   #                   inputId = "select_type",
+   #                   label = "Select a type of data:",
+   #                   choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+   #                   options = list(`actions-box` = TRUE, 
+   #                                  size = 8,
+   #                                  `selected-text-format` = "count > 3"), 
+   #                   multiple = FALSE),
+   #        width = 4,
+   #        tags$br(),
+   #        # Figure Preview button
+   #        actionButton(
+   #          inputId = "figure_preview",
+   #          label = "Preview Figure"),
+   #        # Generate slide button
+   #        actionButton(
+   #          inputId = "generate_slide",
+   #          label = "Generate Slide"),
+   #        width = 4,
+   #        tags$br()), # close second tab panel
+   # # "Quarterly IIT and RTT" ---------------------------------------------------
+   #      tabPanel("Quarterly IIT and RTT",
+   #               # select OU
+   #               shinyWidgets::pickerInput(
+   #                 inputId = "select_ou",
+   #                 label = "Select an operational unit (OU):",
+   #                 choices = unique(glamr::pepfar_country_list$operatingunit),
+   #                 options = list(size = 8)),
+   #               # select a year
+   #               pickerInput(
+   #                 inputId = "select_year",
+   #                 label = "Select a year(s):",
+   #                 choices = c("2023", "2022", "2021", "2020"),
+   #                 options = list(`actions-box` = TRUE, 
+   #                                size = 8,
+   #                                `selected-text-format` = "count > 3"), 
+   #                 multiple = TRUE),
+   #               # select an agency
+   #               pickerInput(
+   #                 inputId = "select_agency",
+   #                 label = "Select an agency/agencies:",
+   #                 choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+   #                 options = list(`actions-box` = TRUE, 
+   #                                size = 8,
+   #                                `selected-text-format` = "count > 3"), 
+   #                 multiple = TRUE),
+   #               # select a type
+   #               pickerInput(
+   #                 inputId = "select_type",
+   #                 label = "Select a type of data:",
+   #                 choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+   #                 options = list(`actions-box` = TRUE, 
+   #                                size = 8,
+   #                                `selected-text-format` = "count > 3"), 
+   #                 multiple = FALSE),
+   #      width = 4,
+   #      tags$br(),
+   #      # Figure Preview button
+   #      actionButton(
+   #        inputId = "figure_preview",
+   #        label = "Preview Figure"),
+   #      # Generate slide button
+   #      actionButton(
+   #        inputId = "generate_slide",
+   #        label = "Generate Slide"),
+   #      width = 4,
+   #      tags$br()), # close third tab panel
+   # # "Quarterly Patient Delta" ---------------------------------------------------
+   #      tabPanel("Quarterly Patient Delta",
+   #               # select OU
+   #               shinyWidgets::pickerInput(
+   #                 inputId = "select_ou",
+   #                 label = "Select an operational unit (OU):",
+   #                 choices = unique(glamr::pepfar_country_list$operatingunit),
+   #                 options = list(size = 8)),
+   #               # select a year
+   #               pickerInput(
+   #                 inputId = "select_year",
+   #                 label = "Select a year(s):",
+   #                 choices = c("2023", "2022", "2021", "2020"),
+   #                 options = list(`actions-box` = TRUE, 
+   #                                size = 8,
+   #                                `selected-text-format` = "count > 3"), 
+   #                 multiple = TRUE),
+   #               # select an agency
+   #               pickerInput(
+   #                 inputId = "select_agency",
+   #                 label = "Select an agency/agencies:",
+   #                 choices = c("USAID", "Peace Corps", "CDC", "DOD"),
+   #                 options = list(`actions-box` = TRUE, 
+   #                                size = 8,
+   #                                `selected-text-format` = "count > 3"), 
+   #                 multiple = TRUE),
+   #               # select a type
+   #               pickerInput(
+   #                 inputId = "select_type",
+   #                 label = "Select a type of data:",
+   #                 choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+   #                 options = list(`actions-box` = TRUE, 
+   #                                size = 8,
+   #                                `selected-text-format` = "count > 3"), 
+   #                 multiple = FALSE),
+   #               width = 4,
+   #               tags$br(),
+   #               # Figure Preview button
+   #               actionButton(
+   #                 inputId = "figure_preview",
+   #                 label = "Preview Figure"),
+   #               # Generate slide button
+   #               actionButton(
+   #                 inputId = "generate_slide",
+   #                 label = "Generate Slide"),
+   #               width = 4,
+   #               tags$br())), 
+# tab box ----------------------------------------------------------------------
         box(
           title = "Figure Preview",
           htmlOutput("plot"), width = 12)
@@ -287,30 +280,31 @@ server <- function(input, output, session) {
   # if the command is submitted
   # If the user selects to preview a figure
   observeEvent(input$figure_preview, {
-    temp <- isolate(input$select_template)
     
-    template_dict <- list(
-      # replace with user indicated name of template
-      "Template_Cumulative_Achievement.pptx" =
-        list(
-          in_file_p = inputs$functions$preview_rmd,
-          out_file = "template_01.html"
-        )
-    )
+    # param_list <- list(
+    #   selected_ou = "South Sudan",
+    #   selected_indicator = "TX_CURR",
+    #   selected_years = c("2021", "2022"),
+    #   selected_agency = "USAID",
+    #   selected_type = "Total")
     
+    dict <- list(
+      in_file = here::here("POART_o_matic/preview_01.Rmd"),
+      out_file = here::here("POART_o_matic/www/preview_01.html"))
+
     # Output the plots requested
     output$plot <- renderUI({
       rmarkdown::render(
-        input = template_dict[[temp]]$in_file_p,
-        params = param_list,
+        input = dict$in_file,
+        #params = param_list,
         output_dir = "./www/",
         output_format = "flexdashboard::flex_dashboard",
-        quiet = FALSE
-      )
+        quiet = FALSE, 
+        clean = TRUE)
       tags$html(
         tags$iframe(
           seamless = "seamless",
-          src = template_dict[[temp]]$out_file,
+          src = dict$out_file,
           width = "100%",
           height = "800px",
           id = "reportIframe"
