@@ -18,12 +18,15 @@
 *.png
 *.twbx
 *.pptx
+*.html
 
 #nothing from these folders
 AI/*
 GIS/*
 Images/*
 Graphics/*
+POART_o_matic/www/*
+POART-o_matic/Images/*
 #no data
 *.csv
 *.txt
@@ -34,6 +37,7 @@ Graphics/*
 *.png
 *.twbx
 *.pptx
+*.html
 
 #nothing from these folders
 AI/*
