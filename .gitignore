@@ -37,7 +37,6 @@ POART-o_matic/Images/*
 *.png
 *.twbx
 *.pptx
-*.html
 
 #nothing from these folders
 AI/*
