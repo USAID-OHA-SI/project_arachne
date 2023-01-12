@@ -17,6 +17,7 @@ library(glue)
 library(scales)
 library(stringr)
 library(janitor)
+library(ggtext)
 
 # Functions --------------------------------------------------------------------
 
@@ -48,8 +49,22 @@ calculate_plhiv <- function(.nat_subnat_df) {
 
 # Summarizes cumulative quarterly progress on selected indicators
 
-ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type, 
+ou_achv_cumul <- function(.path, .indicator, .ou, .fiscal_year, .type, 
                           .subtitle, .funding_agency = NULL, ...) {
+  
+  df <- si_path() %>%
+    return_latest(.path) %>%
+    read_msd()
+  
+  # this seems to only work interactively and I wasn't able to use 
+  # the returned metadata object within the function
+  
+   # si_path() %>%
+   #    return_latest(.path) %>%
+   #    get_metadata()
+ 
+  curr_pd <- source_info(si_path() %>% return_latest("MER_Structured_Datasets_OU_IM"),
+              return = "period")
   
   qtrs_to_keep <- metadata$curr_pd %>%
     convert_qtr_to_date() %>%
@@ -59,7 +74,7 @@ ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type,
   # filter for type, Total or Adults/Children
   if (.type == "Total") {
     
-  .df <- .df %>%
+  df <- df %>%
     filter(
       indicator %in% .indicator,
       operatingunit == .ou,
@@ -74,7 +89,7 @@ ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type,
       "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
       "50-54", "55-59", "60-64", "65+")
     
-    .df <- .df %>%
+    df <- df %>%
       filter(
         indicator %in% .indicator,
         operatingunit == .ou,
@@ -96,11 +111,11 @@ ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type,
   # filter for agency 
   
   if (!is.null(.funding_agency)) {
-    .df <- .df %>%
+    df <- df %>%
       filter(funding_agency == .funding_agency)
   }
 
-  df_new <- .df %>%
+  df_new <- df %>%
     resolve_knownissues() %>%
     group_by(operatingunit, indicator, fiscal_year) %>%
     summarise(across(c(starts_with("qtr"), cumulative, targets),
@@ -113,11 +128,11 @@ ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type,
       period_num = as.numeric(str_sub(period, -1)),
       qtr_target = targets / ((4 - period_num) + 1),
       fiscal_year2 = str_extract(period, "FY[1-2][0-9]"),
-      results_lab = case_when(period == metadata$curr_pd |
-        fiscal_year2 == metadata$curr_fy_lab ~
+      results_lab = case_when(period == curr_pd |
+        fiscal_year2 == curr_fy_lab ~
         glue("{comma(results_cumulative)}")),
-      achv_pct_label = case_when(period == metadata$curr_pd |
-        fiscal_year2 == metadata$curr_fy_lab ~
+      achv_pct_label = case_when(period == curr_pd |
+        fiscal_year2 == curr_fy_lab ~
         glue("{percent(achievement_qtrly)}")),
       ind_period = str_c(indicator, period, sep = "_")
     ) %>%
@@ -153,7 +168,7 @@ ou_achv_cumul <- function(.path, .df, .indicator, .ou, .fiscal_year, .type,
     labs(
       x = NULL, y = NULL, fill = NULL,
       subtitle = glue("{.subtitle}"),
-      caption = glue("{metadata$caption} | US Agency for International Development")
+      caption = glue("Source: {curr_pd} MSD | Ref id: {ref_id} | US Agency for International Development")
     ) +
     si_style_yline() +
     theme(
