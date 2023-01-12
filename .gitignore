@@ -33,6 +33,7 @@ Graphics/*
 *.png
 *.twbx
 *.pptx
+*.html
 
 #nothing from these folders
 AI/*
