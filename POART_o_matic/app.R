@@ -78,7 +78,7 @@ ui <- function() {
       pickerInput(
         inputId = "select_type",
         label = "Select a type of data:",
-        choices = c("Total", "Adult(15+)", "Pediatric (<15)"),
+        choices = c("Total", "Adults (15+)", "Children (<15)"),
         options = list(size = 8), 
         multiple = FALSE),
       # Figure Preview button
