@@ -54,6 +54,10 @@ calculate_plhiv <- function(.nat_subnat_df) {
 ou_achv_cumul <- function(.path, .indicator, .ou, 
                           .type, .title, .funding_agency, ...) {
   
+  # reference id for this figure
+  ref_id <- "4c86a407"
+  
+  
   df_ou <- si_path() %>%
     return_latest(.path) %>%
     read_msd()

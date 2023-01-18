@@ -23,8 +23,8 @@ inputs <- list(
   # list of functions used by app
   functions = list(
     clean = "POART-o-matic/functions/00_loom.R",
-    preview_rmd = "POART-o-matic/preview_01.Rmd",
-    generate_rmd = "POART-o-matic/generate_01.rmd")
+    preview_rmd = "POART-o-matic/functions/preview_01.Rmd",
+    generate_rmd = "POART-o-matic/functions/generate_01.rmd")
 )
 
 # Lists of data files available to use in app ----------------------------------
@@ -32,7 +32,7 @@ inputs <- list(
 # Create lists of templates available for data ---------------------------------
 
 # Location of output slides
-# output_path <- here::here("POART_o_matic/Images")
+output_path <- here::here("POART_o_matic/Slides")
 
 # Setup user interface for app -------------------------------------------------
 ui <- function() {
@@ -113,12 +113,9 @@ ui <- function() {
     tabBox(
       id = "cumul_achv",
       # "Cumulative Achievement"
-      # Buttons show up correctly but don't currently impact the output,
-      # as of now all parameters are being set in the preview_01.Rmd file
-      # and I need to learn how to get the parameters indicated in the 
-      # buttons into param_list that the preview file uses.
       tabPanel("Cumulative Achievement",
-               glue("Cumulative achievement of quarterly targets for selected inputs."),
+               glue("Cumulative achievement of quarterly targets for selected inputs.
+                    Cumulative Results and Quarterly Achievement (%) labeled for previous 4 quarters"),
                width = 4,
                tags$br())
     ), #close tab box
@@ -148,30 +145,23 @@ return(ui)
 # Initialize connection to the R Shiny server ----------------------------------
 server <- function(input, output, session) {
   
-  # Update on figure preview ---------------------------------------------------
-  
   # if the command is submitted
   # If the user selects to preview a figure
   observeEvent(input$figure_preview, {
     
     # get inputs
     selected_ou <-  as.character(input$select_ou)
-    
     selected_indicator = as.character(input$select_indicator)
-     
     # selected_years = as.list(input$select_year)
-     
     selected_agency = as.character(input$select_agency)
-     
     selected_type = as.character(input$select_type)
-    #
+    
     param_list <- list(
       selected_ou = selected_ou,
       selected_indicator = selected_indicator,
-      # #selected_years = selected_years,
+      # selected_years = selected_years,
       selected_agency = selected_agency,
-      selected_type = selected_type
-      )
+      selected_type = selected_type)
     
     dict <- list(
       in_file = here::here("POART_o_matic/Scripts/preview_01.Rmd"),
@@ -199,16 +189,26 @@ server <- function(input, output, session) {
   
   # If the user selects to generate a slide,
   observeEvent(input$generate_slide, {
-    temp <- isolate(input$select_template)
+    # can replace this duplicated chunk if I can figure out
+    # how to wrap it in reactive() correctly
     
-    template_dict <- list(
-      # replace with user indicated name of template
-      "Template_01_Cumulative_Achievement.pptx" =
-        list(in_file_g = inputs$functions$generate_rmd))
+    # get inputs
+    selected_ou <-  as.character(input$select_ou)
+    selected_indicator = as.character(input$select_indicator)
+    # selected_years = as.list(input$select_year)
+    selected_agency = as.character(input$select_agency)
+    selected_type = as.character(input$select_type)
+    
+    param_list <- list(
+      selected_ou = selected_ou,
+      selected_indicator = selected_indicator,
+      # selected_years = selected_years,
+      selected_agency = selected_agency,
+      selected_type = selected_type)
     
     # generate the slides with user-provided parameters
     rmarkdown::render(
-      input = template_dict[[temp]]$in_file_g,
+      input = here::here("POART_o_matic/Scripts/generate_01.Rmd"),
       params = param_list,
       quiet = FALSE
     )

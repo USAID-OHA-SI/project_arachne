@@ -13,55 +13,56 @@ params:
 
 ```{r debug, echo=FALSE, message=FALSE}
 
-library(tidyverse)
-library(extrafont)
-library(gagglr)
-library(glue)
-library(scales)
-library(stringr)
-library(ggtext)
-library(tidytext)
-library(janitor)
-library(assertthat)
-library(officer)
-library(Cairo)
-library(gridExtra)
-library(rvg)
-library(withr)
-library(grid)
-
-# Functions used
-loom_funcs <- here::here("POART_o_matic/functions/00_loom.R")
-
-# get visual specific template
-template <- list.files(path = here::here("POART_o_matic/templates"),
-                             full.names = TRUE,
-                            pattern = "_01_")
-
-# Example Parameters for debugging purposes
-
-selected_ou <- "South Sudan"
-selected_indicator <- "TX_CURR"
-selected_agency <- "USAID"
-selected_type <- "Total"
-
-si_path() %>%
-  return_latest("MER_Structured_Datasets_OU_IM")
-
-# This assumes the user has their MSD path setup correctly and that they have
-# at least one OU by IM file in that folder, this can be generalized
-# to use different datasets but it works at the highest level of detail MSD
-
-df_ou <- si_path() %>%
-  return_latest("MER_Structured_Datasets_OU_IM") %>%
-  read_msd()
-
-# this seems to only work interactively since I wasn't able to use
-# the returned metadata object within the function when it was called from the app
-# metadata
-si_path() %>%
-  return_latest("MER_Structured_Datasets_OU_IM") %>%
-  get_metadata()
+# library(tidyverse)
+# library(extrafont)
+# library(gagglr)
+# library(glue)
+# library(scales)
+# library(stringr)
+# library(ggtext)
+# library(tidytext)
+# library(janitor)
+# library(assertthat)
+# library(officer)
+# library(Cairo)
+# library(gridExtra)
+# library(rvg)
+# library(withr)
+# library(grid)
+# library(here)
+# 
+# # Functions used
+# loom_funcs <- here("POART_o_matic/functions/00_loom.R")
+# 
+# # get visual specific template
+# template <- list.files(path = here::here("POART_o_matic/templates"),
+#                              full.names = TRUE,
+#                             pattern = "_01_")
+# 
+# # Example Parameters for debugging purposes
+# 
+# selected_ou <- "South Sudan"
+# selected_indicator <- "TX_CURR"
+# selected_agency <- "USAID"
+# selected_type <- "Total"
+# 
+# si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM")
+# 
+# # This assumes the user has their MSD path setup correctly and that they have
+# # at least one OU by IM file in that folder, this can be generalized
+# # to use different datasets but it works at the highest level of detail MSD
+# 
+# df_ou <- si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM") %>%
+#   read_msd()
+# 
+# # this seems to only work interactively since I wasn't able to use
+# # the returned metadata object within the function when it was called from the app
+# # metadata
+# si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM") %>%
+#   get_metadata()
 
 ```
 
@@ -69,7 +70,14 @@ si_path() %>%
 
 ref_id <- "4c86a407"
 
+# Functions used
+loom_funcs <- here("POART_o_matic/functions/00_loom.R")
+
 source(loom_funcs)
+
+template <- list.files(path = here("POART_o_matic/templates"),
+                              full.names = TRUE,
+                             pattern = "_01_")
 ```
 
 ```{r viz, echo=FALSE, message=FALSE}
@@ -83,6 +91,8 @@ cumul_achv <- ou_achv_cumul(
       .type = selected_type, 
       height = 5.63, 
       width = 12.2)
+
+print("Visual complete, arranging on slide...")
 
 ```
 
@@ -108,8 +118,9 @@ slide_dml <- dml(grid.arrange(cumul_achv, widths = 12.2,
                           gp = gpar(
                             fontfamily = "Source Sans Pro", 
                             fontface = "bold",
-                            fontsize = 20)))
-                 )
+                            fontsize = 20))))
+
+print("Figure arranged, generating slide...")
 
 ```
 
@@ -125,7 +136,11 @@ slide_complete <- ph_with(slide_template, slide_dml,
                             width = 12.2, 
                             height = 5.63))
 
-output_loc <- glue(here::here("POART_o_matic/Slides/Cumulative_Achievement_{OU}_{indicator}_{FY_min}_{FY_max}.pptx"))
+ou_name <- as.character(df$operatingunit[1]) %>% str_replace(" ", "_")
+
+output_loc <- glue(here("POART_o_matic/Slides/Cumulative_Achievement_{ou_name}_{indicator}_{FY_min}_{FY_max}.pptx"))
 
 print(slide_complete, target = output_loc)
+
+print(glue("Slide generated as {output_loc}"))
 ```
