@@ -13,45 +13,46 @@ params:
 
 ```{r debug, echo=FALSE, message=FALSE}
 # 
-library(tidyverse)
-library(extrafont)
-library(gagglr)
-library(glue)
-library(scales)
-library(stringr)
-library(ggtext)
-library(tidytext)
-library(cowplot)
-library(janitor)
+# library(tidyverse)
+# library(extrafont)
+# library(gagglr)
+# library(glue)
+# library(scales)
+# library(stringr)
+# library(ggtext)
+# library(tidytext)
+# library(cowplot)
+# library(janitor)
+# library(assertthat)
+# # 
+# # Example Parameters for debugging purposes
+# # 
+# selected_ou <- "Angola"
+# selected_indicator <- "TX_CURR"
+# selected_agency <- "USAID"
+# selected_type <- "Total"
+# # # #
+# si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM")
 # 
-# Example Parameters for debugging purposes
+# # # template_list <- list.files(path = here::here("POART_o_matic/templates"),
+# # #                             full.names = FALSE,
+# # #                             pattern = "pptx")
 # 
-selected_ou <- "Angola"
-selected_indicator <- "TX_CURR"
-selected_agency <- "USAID"
-selected_type <- "Total"
+# # # # # This assumes the user has their MSD path setup correctly and that they have
+# # # # # at least one OU by IM file in that folder, this can be generalized
+# # # # # to use different datasets but it works at the highest level of detail MSD
+# # # #
+# df_ou <- si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM") %>%
+#   read_msd()
 # # #
-si_path() %>%
-  return_latest("MER_Structured_Datasets_OU_IM")
-
-# # template_list <- list.files(path = here::here("POART_o_matic/templates"),
-# #                             full.names = FALSE,
-# #                             pattern = "pptx")
-
-# # # # This assumes the user has their MSD path setup correctly and that they have
-# # # # at least one OU by IM file in that folder, this can be generalized
-# # # # to use different datasets but it works at the highest level of detail MSD
-# # #
-df_ou <- si_path() %>%
-  return_latest("MER_Structured_Datasets_OU_IM") %>%
-  read_msd()
-# #
-# # # this seems to only work interactively since I wasn't able to use
-# # # the returned metadata object within the function when it was called from the app
-# # metadata
-si_path() %>%
-  return_latest("MER_Structured_Datasets_OU_IM") %>%
-  get_metadata()
+# # # # this seems to only work interactively since I wasn't able to use
+# # # # the returned metadata object within the function when it was called from the app
+# # # metadata
+# si_path() %>%
+#   return_latest("MER_Structured_Datasets_OU_IM") %>%
+#   get_metadata()
 
 ```
 
@@ -61,6 +62,13 @@ ref_id <- "4c86a407"
 
 ou_achv_cumul <- function(.path, .indicator, .ou, 
                           .type, .title, .funding_agency, ...) {
+  
+      .path = "MER_Structured_Datasets_OU_IM"
+      .indicator = selected_indicator
+      .ou = selected_ou
+      .title = ""
+      .funding_agency = selected_agency
+      .type = selected_type
   
   df_ou <- si_path() %>%
     return_latest(.path) %>%
@@ -80,7 +88,7 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
     convert_date_to_qtr()
   
   # filter for type, Total or Adults/Children
-  if (.type == "Total") {
+  {if (.type == "Total") {
     
     df_ou <- df_ou %>%
       filter(
@@ -113,12 +121,21 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
           ageasentered %in% peds ~ "Children (<15)")) %>%
       filter(type %in% .type)
 
-  }
+  }}
   
-  if (.funding_agency != as.character("All")) {
+  # this section and test could be more straightforward
+  
+  if ((.funding_agency != as.character("All") & 
+       (as.character(.funding_agency) %in% df_ou$funding_agency) == TRUE)) {
     
     df_ou <- df_ou %>%
     filter(funding_agency == as.character(.funding_agency))
+    
+        # Example of a unit test with a custom, informative error message
+    assert_that(
+      ((.funding_agency != as.character("All") & 
+      as.character(.funding_agency) %in% df_ou$funding_agency == TRUE)), 
+      msg = "This funding agency is not available for this combination of inputs")
     
   }
  
@@ -144,7 +161,6 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
       ind_period = str_c(indicator, period, sep = "_")) %>%
     filter(period %in% qtrs_to_keep)
     
-  
   
   df_final %>%
     ggplot(aes(x = period)) +

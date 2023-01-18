@@ -4,7 +4,7 @@ pacman::p_load(
   "stringr", "janitor", "rvg", "glue", "withr","writexl", 
   "shinyWidgets", "shinydashboard","shinydashboardPlus", 
   "plotly", "shinybusy", "flexdashboard","readxl", "ggtext", 
-  "tidytext", "cowplot", "gagglr", "rmarkdown", "extrafont")
+  "tidytext", "cowplot", "gagglr", "rmarkdown", "extrafont", "assertthat")
 
 # List of inputs used in the app -----------------------------------------------
 
@@ -203,7 +203,7 @@ server <- function(input, output, session) {
     
     template_dict <- list(
       # replace with user indicated name of template
-      "Template_Cumulative_Achievement.pptx" =
+      "Template_01_Cumulative_Achievement.pptx" =
         list(in_file_g = inputs$functions$generate_rmd))
     
     # generate the slides with user-provided parameters
