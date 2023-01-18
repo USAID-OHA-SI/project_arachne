@@ -12,7 +12,6 @@ params:
 ---
 
 ```{r debug, echo=FALSE, message=FALSE}
-
 # library(tidyverse)
 # library(extrafont)
 # library(gagglr)
@@ -30,111 +29,106 @@ params:
 # library(withr)
 # library(grid)
 # library(here)
-# 
+#
 # # Functions used
 # loom_funcs <- here("POART_o_matic/functions/00_loom.R")
-# 
+#
 # # get visual specific template
 # template <- list.files(path = here::here("POART_o_matic/templates"),
 #                              full.names = TRUE,
 #                             pattern = "_01_")
-# 
+#
 # # Example Parameters for debugging purposes
-# 
+#
 # selected_ou <- "South Sudan"
 # selected_indicator <- "TX_CURR"
 # selected_agency <- "USAID"
 # selected_type <- "Total"
-# 
+#
 # si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM")
-# 
+#
 # # This assumes the user has their MSD path setup correctly and that they have
 # # at least one OU by IM file in that folder, this can be generalized
 # # to use different datasets but it works at the highest level of detail MSD
-# 
+#
 # df_ou <- si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM") %>%
 #   read_msd()
-# 
+#
 # # this seems to only work interactively since I wasn't able to use
 # # the returned metadata object within the function when it was called from the app
 # # metadata
 # si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM") %>%
 #   get_metadata()
-
 ```
 
 ```{r global_vars, echo=FALSE, message=FALSE}
-
 ref_id <- "4c86a407"
 
-# Functions used
-loom_funcs <- here("POART_o_matic/functions/00_loom.R")
-
-source(loom_funcs)
-
-template <- list.files(path = here("POART_o_matic/templates"),
-                              full.names = TRUE,
-                             pattern = "_01_")
+# comes from global.R
+template <- inputs$templates$template_one
 ```
 
 ```{r viz, echo=FALSE, message=FALSE}
-
 cumul_achv <- ou_achv_cumul(
-      .path = "MER_Structured_Datasets_OU_IM",
-      .indicator = selected_indicator,
-      .ou = selected_ou,
-      .title = "",
-      .funding_agency = selected_agency,
-      .type = selected_type, 
-      height = 5.63, 
-      width = 12.2)
+  .path = "MER_Structured_Datasets_OU_IM",
+  .indicator = selected_indicator,
+  .ou = selected_ou,
+  .title = "",
+  .funding_agency = selected_agency,
+  .type = selected_type,
+  height = 5.63,
+  width = 12.2
+)
 
 print("Visual complete, arranging on slide...")
-
 ```
 
 ```{r dml, echo=FALSE}
-
 df <- cumul_achv$data
 
-OU = as.character(df$operatingunit[1]) %>%toupper()
-indicator = as.character(df$indicator[1])
-FY_min = as.character(min(df$fiscal_year))
-FY_max = as.character(max(df$fiscal_year)) 
+OU <- as.character(df$operatingunit[1]) %>% toupper()
+indicator <- as.character(df$indicator[1])
+FY_min <- as.character(min(df$fiscal_year))
+FY_max <- as.character(max(df$fiscal_year))
 
-slide_dml <- dml(grid.arrange(cumul_achv, widths = 12.2, 
-                           top = textGrob(
-                             glue("{indicator} IN {OU} ({FY_min} - {FY_max})", 
-                             OU = as.character(df$operatingunit[1]) %>%toupper(),
-                             indicator = as.character(df$indicator[1]),
-                             FY_min = as.character(min(df$fiscal_year)),
-                             FY_max = as.character(max(df$fiscal_year)), 
-                             big.mark = ",", 
-                             just = "right", 
-                             col = "#202020"), 
-                          gp = gpar(
-                            fontfamily = "Source Sans Pro", 
-                            fontface = "bold",
-                            fontsize = 20))))
+slide_dml <- dml(grid.arrange(cumul_achv,
+  widths = 12.2,
+  top = textGrob(
+    glue("{indicator} IN {OU} ({FY_min} - {FY_max})",
+      OU = as.character(df$operatingunit[1]) %>% toupper(),
+      indicator = as.character(df$indicator[1]),
+      FY_min = as.character(min(df$fiscal_year)),
+      FY_max = as.character(max(df$fiscal_year)),
+      big.mark = ",",
+      just = "right",
+      col = "#202020"
+    ),
+    gp = gpar(
+      fontfamily = "Source Sans Pro",
+      fontface = "bold",
+      fontsize = 20
+    )
+  )
+))
 
 print("Figure arranged, generating slide...")
-
 ```
 
 ```{r slide, echo=FALSE}
-
 slide_template <- read_pptx(path = template)
 
-slide_complete <- ph_with(slide_template, slide_dml, 
-                          location = ph_location(
-                            left = 0.5,
-                            right = 0.5,
-                            top = 1.5, 
-                            width = 12.2, 
-                            height = 5.63))
+slide_complete <- ph_with(slide_template, slide_dml,
+  location = ph_location(
+    left = 0.5,
+    right = 0.5,
+    top = 1.5,
+    width = 12.2,
+    height = 5.63
+  )
+)
 
 ou_name <- as.character(df$operatingunit[1]) %>% str_replace(" ", "_")
 

@@ -12,7 +12,7 @@ params:
 ---
 
 ```{r debug, echo=FALSE, message=FALSE}
-# 
+#
 # library(tidyverse)
 # library(extrafont)
 # library(gagglr)
@@ -24,7 +24,6 @@ params:
 # library(janitor)
 # library(assertthat)
 
-
 # Functions used
 # loom_funcs <- "POART_o_matic/functions/loom.R"
 
@@ -33,7 +32,6 @@ params:
 # selected_indicator <- "TX_CURR"
 # selected_agency <- "USAID"
 # selected_type <- "Total"
-
 
 # si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM")
@@ -52,29 +50,17 @@ params:
 # si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM") %>%
 #   get_metadata()
-
-```
-
-```{r global_vars, echo=FALSE, message=FALSE}
-
-# Functions used
-loom_funcs <- here::here("POART_o_matic/functions/00_loom.R")
-
-source(loom_funcs)
-
 ```
 
 ```{r viz, echo=FALSE, message=FALSE}
-
 cumul_achv <- ou_achv_cumul(
-      .path = "MER_Structured_Datasets_OU_IM",
-      .indicator = selected_indicator,
-      .ou = selected_ou,
-      .title = "",
-      .funding_agency = selected_agency,
-      .type = selected_type
-      )
+  .path = "MER_Structured_Datasets_OU_IM",
+  .indicator = selected_indicator,
+  .ou = selected_ou,
+  .title = "",
+  .funding_agency = selected_agency,
+  .type = selected_type
+)
 
 cumul_achv
-
 ```
