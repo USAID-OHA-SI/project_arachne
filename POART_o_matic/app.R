@@ -155,22 +155,23 @@ server <- function(input, output, session) {
   observeEvent(input$figure_preview, {
     
     # get inputs
-    selected_ou <-  reactive({as.character(input$select_ou)})
+    selected_ou <-  as.character(input$select_ou)
     
-    selected_indicator = reactive({as.character(input$select_indicator)})
-    
-    #selected_years = reactive({as.list(input$select_year)})
-    
-    selected_agency = reactive({as.character(input$select_agency)})
-    
-    selected_type = reactive({as.character(input$select_type)})
-    
+    selected_indicator = as.character(input$select_indicator)
+     
+    # selected_years = as.list(input$select_year)
+     
+    selected_agency = as.character(input$select_agency)
+     
+    selected_type = as.character(input$select_type)
+    #
     param_list <- list(
       selected_ou = selected_ou,
       selected_indicator = selected_indicator,
-      #selected_years = selected_years,
+      # #selected_years = selected_years,
       selected_agency = selected_agency,
-      selected_type = selected_type)
+      selected_type = selected_type
+      )
     
     dict <- list(
       in_file = here::here("POART_o_matic/Scripts/preview_01.Rmd"),

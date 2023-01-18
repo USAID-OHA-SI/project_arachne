@@ -15,43 +15,43 @@ params:
 # 
 library(tidyverse)
 library(extrafont)
-# library(gagglr)
-# library(glue)
-# library(scales)
-# library(stringr)
-# library(ggtext)
-# library(tidytext)
-# library(cowplot)
-# library(janitor)
-# #
-# # Example Parameters for debugging purposes
-# #
-# selected_ou <- "South Sudan"
-# selected_indicator <- "TX_CURR"
-# selected_agency <- "All"
-# selected_type <- "Total"
-# #
-# si_path() %>%
-#   return_latest("MER_Structured_Datasets_OU_IM")
+library(gagglr)
+library(glue)
+library(scales)
+library(stringr)
+library(ggtext)
+library(tidytext)
+library(cowplot)
+library(janitor)
 # 
-# template_list <- list.files(path = here::here("POART_o_matic/templates"),
-#                             full.names = FALSE,
-#                             pattern = "pptx")
-# #
-# # # This assumes the user has their MSD path setup correctly and that they have
-# # # at least one OU by IM file in that folder, this can be generalized
-# # # to use different datasets but it works at the highest level of detail MSD
-# #
-# df_ou <- si_path() %>%
-#   return_latest("MER_Structured_Datasets_OU_IM") %>%
-#   read_msd()
+# Example Parameters for debugging purposes
+# 
+selected_ou <- "Angola"
+selected_indicator <- "TX_CURR"
+selected_agency <- "USAID"
+selected_type <- "Total"
+# # #
+si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM")
+
+# # template_list <- list.files(path = here::here("POART_o_matic/templates"),
+# #                             full.names = FALSE,
+# #                             pattern = "pptx")
+
+# # # # This assumes the user has their MSD path setup correctly and that they have
+# # # # at least one OU by IM file in that folder, this can be generalized
+# # # # to use different datasets but it works at the highest level of detail MSD
+# # #
+df_ou <- si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM") %>%
+  read_msd()
 # #
 # # # this seems to only work interactively since I wasn't able to use
 # # # the returned metadata object within the function when it was called from the app
 # # metadata
-# si_path() %>%
-#   return_latest("MER_Structured_Datasets_OU_IM") %>%
-#   get_metadata()
+si_path() %>%
+  return_latest("MER_Structured_Datasets_OU_IM") %>%
+  get_metadata()
 
 ```
 
@@ -80,7 +80,7 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
     convert_date_to_qtr()
   
   # filter for type, Total or Adults/Children
-  {if (.type == "Total") {
+  if (.type == "Total") {
     
     df_ou <- df_ou %>%
       filter(
@@ -113,14 +113,14 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
           ageasentered %in% peds ~ "Children (<15)")) %>%
       filter(type %in% .type)
 
-  }}
+  }
   
-  {if (.funding_agency != as.list("All")) {
+  if (.funding_agency != as.character("All")) {
     
     df_ou <- df_ou %>%
-    filter(funding_agency == as.list(.funding_agency))
+    filter(funding_agency == as.character(.funding_agency))
     
-  }}
+  }
  
     df_final <- df_ou %>%
     resolve_knownissues() %>%
@@ -143,6 +143,8 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
                                    glue("{percent(achievement_qtrly)}")),
       ind_period = str_c(indicator, period, sep = "_")) %>%
     filter(period %in% qtrs_to_keep)
+    
+  
   
   df_final %>%
     ggplot(aes(x = period)) +
