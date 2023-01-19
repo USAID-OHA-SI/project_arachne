@@ -27,6 +27,8 @@ Images/*
 Graphics/*
 POART_o_matic/www/*
 POART-o_matic/Images/*
+POART-o_matic/Slides/*
+POART-o_matic/Templates/*
 #no data
 *.csv
 *.txt
