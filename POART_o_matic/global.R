@@ -4,7 +4,7 @@
 # REF ID:   3506c726
 # LICENSE:  MIT
 # DATE:     2023-01-18
-# UPDATED:
+# UPDATED:  2023-01-19
 
 # DEPENDENCIES ----------------------------------------------------------------
 
@@ -19,7 +19,7 @@ pacman::p_load(
 
 # GLOBAL VARIABLES ------------------------------------------------------------
 
-# List of inputs used in the app -----------------------------------------------
+# List of inputs used in the app ----
 
 inputs <- list(
 
@@ -42,10 +42,22 @@ inputs <- list(
   )
 )
 
-<<<<<<< HEAD
-=======
 
->>>>>>> trunk
+
+# Custom theme
+
+# a dream:
+# theme <- bslib::bs_theme(
+#   bg = "#FFFFFF",
+#   fg = glitr::usaid_blue, 
+#   primary = glitr::usaid_blue,
+#   secondary = glitr::burnt_sienna, 
+#   info = glitr::denim,
+#   success = glitr::genoa, 
+#   warning = glitr::golden_sand, 
+#   danger = glitr::old_rose,
+#   base_font = "Source Sans Pro")
+
 # Functions --------------------------------------------------------------------
 
 # Calculate PLHIV ----
@@ -58,8 +70,7 @@ calculate_plhiv <- function(.nat_subnat_df) {
   df_nat <- .nat_subnat_df %>%
     filter(
       indicator %in% c("TX_CURR_SUBNAT", "PLHIV"),
-      standardizeddisaggregate == "Age/Sex/HIVStatus"
-    ) %>%
+      standardizeddisaggregate == "Age/Sex/HIVStatus") %>%
     group_by(fiscal_year, indicator) %>%
     summarise(across(targets, sum, na.rm = TRUE)) %>%
     pivot_wider(names_from = indicator, values_from = targets) %>%
@@ -68,8 +79,7 @@ calculate_plhiv <- function(.nat_subnat_df) {
       gap_pct = percent(gap),
       need_label = comma(PLHIV - TX_CURR_SUBNAT),
       PLHIV_label = comma(PLHIV),
-      TX_CURR_SUBNAT_label = comma(TX_CURR_SUBNAT)
-    )
+      TX_CURR_SUBNAT_label = comma(TX_CURR_SUBNAT))
 
   return(df_nat)
 }
@@ -91,14 +101,12 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
   curr_pd <- as.character(source_info(
     si_path() %>%
       return_latest("MER_Structured_Datasets_OU_IM"),
-    return = "period"
-  ))
+    return = "period"))
 
   curr_fy_lab <- as.character(source_info(
     si_path() %>%
       return_latest("MER_Structured_Datasets_OU_IM"),
-    return = "fiscal_year_label"
-  ))
+    return = "fiscal_year_label"))
 
   qtrs_to_keep <- curr_pd %>%
     convert_qtr_to_date() %>%
@@ -111,16 +119,14 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
       df_ou <- df_ou %>%
         filter(
           indicator %in% .indicator,
-          operatingunit == .ou
-        ) %>%
+          operatingunit == .ou) %>%
         resolve_knownissues() %>%
         pluck_totals()
     } else {
       peds <- c("<01", "01-04", "05-09", "10-14")
       adults <- c(
         "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
-        "50-54", "55-59", "60-64", "65+"
-      )
+        "50-54", "55-59", "60-64", "65+")
 
       df_ou <- df_ou %>%
         filter(
@@ -128,16 +134,14 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
           operatingunit %in% .ou,
           (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
             (standardizeddisaggregate == "Total Numerator") |
-            (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)
-        ) %>%
+            (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)) %>%
         resolve_knownissues() %>%
         mutate(type = case_when(
           standardizeddisaggregate == "Total Numerator" ~ "Total",
           standardizeddisaggregate == "Age/Sex/HIVStatus" &
             ageasentered %in% adults ~ "Adults (15+)",
           standardizeddisaggregate == "Age/Sex/HIVStatus" &
-            ageasentered %in% peds ~ "Children (<15)"
-        )) %>%
+            ageasentered %in% peds ~ "Children (<15)")) %>%
         filter(type %in% .type)
     }
   }
@@ -153,8 +157,7 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
     assert_that(
       ((.funding_agency != as.character("All") &
         as.character(.funding_agency) %in% df_ou$funding_agency == TRUE)),
-      msg = "This funding agency is not available for this combination of inputs"
-    )
+      msg = "This funding agency is not available for this combination of inputs")
   }
 
   df_final <- df_ou %>%
@@ -162,8 +165,7 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
     group_by(operatingunit, indicator, fiscal_year) %>%
     summarise(across(c(starts_with("qtr"), cumulative, targets),
       sum,
-      na.rm = TRUE
-    ), .groups = "keep") %>%
+      na.rm = TRUE), .groups = "keep") %>%
     reshape_msd(direction = "quarters") %>%
     adorn_achievement() %>%
     arrange(period) %>%
@@ -177,51 +179,40 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
       achv_pct_label = case_when(period == curr_pd |
         fiscal_year2 == curr_fy_lab ~
         glue("{percent(achievement_qtrly)}")),
-      ind_period = str_c(indicator, period, sep = "_")
-    ) %>%
+      ind_period = str_c(indicator, period, sep = "_")) %>%
     filter(period %in% qtrs_to_keep)
-
 
   df_final %>%
     ggplot(aes(x = period)) +
     geom_col(aes(y = qtr_target),
       alpha = .7, fill = usaid_lightgrey,
-      position = position_dodge(width = .65)
-    ) +
+      position = position_dodge(width = .65)) +
     geom_col(aes(y = results_cumulative),
       alpha = .7, fill = scooter_med,
-      position = position_dodge(width = .65)
-    ) +
+      position = position_dodge(width = .65)) +
     geom_text(aes(label = achv_pct_label, y = 0),
       position = position_dodge(width = 0.75), color = "#FFFFFF",
       family = "Source Sans Pro", size = 12 / .pt,
-      vjust = -.5, na.rm = TRUE
-    ) +
+      vjust = -.5, na.rm = TRUE) +
     geom_text(aes(label = results_lab, y = results_cumulative),
       position = position_dodge(width = 0.75), color = scooter_med,
       family = "Source Sans Pro", size = 12 / .pt,
-      vjust = -.5, na.rm = TRUE
-    ) +
+      vjust = -.5, na.rm = TRUE) +
     scale_x_discrete(breaks = unique(df_final$period)[grep("Q(2|4)", unique(df_final$period))]) +
-    # how to dynamically add just a little excess to the
-    # max. value to accommodate the geom_text?
     scale_y_continuous(
       limits = c(0, max(df_final$qtr_target) + 5000),
-      label = label_number(scale_cut = cut_short_scale())
-    ) +
+      label = label_number(scale_cut = cut_short_scale())) +
     labs(
       x = NULL, y = NULL, fill = NULL,
       title = glue("{.title}"),
       # subtitle = glue(""),
-      caption = glue("Source: {curr_pd} MSD | Ref id: {ref_id} | US Agency for International Development")
-    ) +
+      caption = glue("Source: {curr_pd} MSD | Ref id: {ref_id} | US Agency for International Development")) +
     si_style_yline() +
     theme(
       panel.spacing = unit(.5, "line"),
       legend.position = "none",
       plot.title = element_markdown(),
-      strip.text = element_markdown()
-    )
+      strip.text = element_markdown())
 }
 
 # Summarizes quarterly progress on selected indicators ----
