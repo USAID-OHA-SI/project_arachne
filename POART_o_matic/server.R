@@ -9,16 +9,16 @@
 function(input, output, session) {
 
   # If the user selects to preview a figure...
-  
+
   observeEvent(input$figure_preview, {
-    
+
     # get their inputs...
     selected_ou <- as.character(input$select_ou)
     selected_indicator <- as.character(input$select_indicator)
     # selected_years = as.list(input$select_year)
     selected_agency <- as.character(input$select_agency)
     selected_type <- as.character(input$select_type)
-    
+
     # set them as the parameters for the RMD...
     param_list <- list(
       selected_ou = selected_ou,
@@ -26,7 +26,7 @@ function(input, output, session) {
       # selected_years = selected_years,
       selected_agency = selected_agency,
       selected_type = selected_type)
-    
+
     # TODO: add back functionality to select and use selected template
 
     # establish the input and output files...
@@ -60,7 +60,7 @@ function(input, output, session) {
     # selected_years = as.list(input$select_year)
     selected_agency <- as.character(input$select_agency)
     selected_type <- as.character(input$select_type)
-    
+
     # set them as the parameters for the RMD...
     param_list <- list(
       selected_ou = selected_ou,
@@ -73,4 +73,5 @@ function(input, output, session) {
     rmarkdown::render(
       input = here::here("POART_o_matic/Scripts/generate_01.Rmd"),
       params = param_list,
-      quiet = FALSE)})} # end generate loop
+      quiet = FALSE)})
+  } # end generate loop

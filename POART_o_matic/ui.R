@@ -56,7 +56,7 @@ dashboardPage(
         options = list(size = 8),
         multiple = FALSE),
       # select a visual ----
-      # this isn't hooked up yet because there's only one 
+      # this isn't hooked up yet because there's only one
       # visual right now, but will be connected to the list of templates
       pickerInput(
         inputId = "select_template",
@@ -99,34 +99,34 @@ dashboardPage(
               a range of exploratory visualizations developed from 
               themes common in POART presentations. 
               On the left are options to create each visual. 
-              Each tab on the right features a different exploratory visualization
-              you can preview in the application or export as a Powerpoint slide. 
+            Each tab on the right features a different exploratory visualization
+            you can preview in the application or export as a Powerpoint slide. 
                     
               For questions about or suggestions for this application 
               please contact sisupport@usaid.gov"),
       # "About the Application"
       title = "POART-l: Start Here",
       footer = glue("Developer/Maintainer: Jessica Hoehner, 
-                     Contributers: Aaron Chafetz"), 
+                     Contributers: Aaron Chafetz"),
       collapsible = TRUE),
     # Cumul Achv Box -----
     tabBox(
       id = "cumul_achv",
       # "Cumulative Achievement"
       tabPanel("Cumulative Achievement",
-        glue("Cumulative achievement of quarterly targets for selected inputs.
-                    Cumulative Results and Quarterly Achievement (%) labeled for previous 4 quarters"),
+    glue("Cumulative achievement of quarterly targets. Cumulative Results 
+         and Quarterly Achievement (%) are labeled for previous 4 quarters"),
         width = 4,
         tags$br())), # close Cumul Achv box
-    # "Quarterly Achievement" ---------------------------------------------------
+    # "Quarterly Achievement" --------------------------------------------------
     #        tabPanel("Quarterly Achievement",
     #        width = 4,
     #        tags$br()), # close second tab panel
-    # "Quarterly IIT and RTT" ---------------------------------------------------
+    # "Quarterly IIT and RTT" --------------------------------------------------
     #      tabPanel("Quarterly IIT and RTT",
     #      width = 4,
     #      tags$br()), # close third tab panel
-    # "Quarterly Patient Delta" ---------------------------------------------------
+    # "Quarterly Patient Delta" ------------------------------------------------
     #      tabPanel("Quarterly Patient Delta",
     #               width = 4,
     #               tags$br())),
