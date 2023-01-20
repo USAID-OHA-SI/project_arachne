@@ -20,8 +20,14 @@ library(janitor)
 library(ggtext)
 library(tidytext)
 library(assertthat)
+library(assertr)
 
 # Functions --------------------------------------------------------------------
+
+# Helper function for assertr::verify() to throw more descriptive error messages
+# when used in a data analysis pipeline
+# Hi JF!
+err_text <- function(msg) stop(msg, call = FALSE)
 
 # Calculate PLHIV in a given OU, returns a data frame containing OU level
 # TX_CURR_SUBNAT and an associated label, PLHIV and an associated label,
