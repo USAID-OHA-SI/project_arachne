@@ -149,19 +149,29 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
 
   }}
   
-  # this section and test could be more straightforward
-  
   if ((.funding_agency != as.character("All") & 
        (as.character(.funding_agency) %in% df_ou$funding_agency) == TRUE)) {
     
+    # list of all expected agencies even though user currently only has 
+    # option to filter for USAID, DOD, PC, or CDC
+    expected_agencies <- c("USAID", "DOD", "HHS/CDC", "CDC", "STATE", 
+                           "HRSA", "DEFAULT", "DEDUP", "PC")
+    
     df_ou <- df_ou %>%
+      verify(as.character(.funding_agency) %in% expected_agencies,
+             error_fun = err_text(glue(
+             "Error: Unexpected funding agency input. 
+              To include this funding agency in expected inputs, 
+             please add it to the expected_agencies object in the 
+             funding agency filter section in cumul_achv() in loom.R")),
+             description = glue("Verify that selected agency is a valid input")) %>%
     filter(funding_agency == as.character(.funding_agency))
     
         # Example of a unit test with a custom, informative error message
     assert_that(
       ((.funding_agency != as.character("All") & 
       as.character(.funding_agency) %in% df_ou$funding_agency == TRUE)), 
-      msg = "This funding agency is not available for this combination of inputs")
+      msg = "This funding agency is not available for this combination of inputs.")
     
   }
  
