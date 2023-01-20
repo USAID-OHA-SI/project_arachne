@@ -72,14 +72,31 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
                                         return_latest("MER_Structured_Datasets_OU_IM"),
                          return = "period"))
   
+  # Validating the assumption that the current fiscal year label 
+  # matches the format we expect
+  validate_that(str_detect(curr_pd, "FY[1-2][0-9]Q[1-4]"), 
+                msg = glue("Error in reading the current period from the input MSD. 
+          Please check the cumul_achv function and the MSD you are reading in."))
+  
   curr_fy_lab <- as.character(source_info(si_path() %>%
                                             return_latest("MER_Structured_Datasets_OU_IM"),
             return = "fiscal_year_label"))
+  
+  # Validating the assumption that the current fiscal year label 
+  # matches the format we expect
+  validate_that(str_detect(curr_fy_lab, "FY[1-2][0-9]"), 
+                msg = glue("Error in reading the current fiscla year from the input MSD. 
+          Please check the cumul_achv function and the MSD you are reading in."))
   
   qtrs_to_keep <- curr_pd %>%
     convert_qtr_to_date() %>%
     seq.Date(by = "-3 months", length = 6) %>%
     convert_date_to_qtr()
+  
+  # Validating the assumption that we are only keeping the last 6 qtrs
+  validate_that(str_length(qtrs_to_keep)[1] == 6, 
+                msg = "Error in retaining the expected number of quarters. 
+          Please check the cumul_achv function and the MSD you are reading in.")
   
   # filter for type, Total or Adults/Children
   {if (.type == "Total") {
