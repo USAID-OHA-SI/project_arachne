@@ -130,6 +130,22 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
           ageasentered %in% adults ~ "Adults (15+)",
         standardizeddisaggregate == "Age/Sex/HIVStatus" &
           ageasentered %in% peds ~ "Children (<15)")) %>%
+      # verify the assumption that the categories were created correctly
+      verify(if_else(ageasentered %in% peds, type == "Children (<15)",
+                     type == "Total" | type == "Adults (15+)"),
+      error_fun = err_text(glue("Age Type Children (<15) has not been created correctly. 
+                                Please check the filter for type section in cumul_achv() in loom.R")),
+      description = glue("Verify that the Child category was created correctly")) %>%
+      verify(if_else(ageasentered %in% adults, type == "Adults (15+)",
+                     type == "Total" | type == "Children (<15)"),
+      error_fun = err_text(glue("Age Type Adults (15+) has not been created correctly. 
+                                Please check the filter for type section in cumul_achv() in loom.R")),
+      description = glue("Verify that the Adult category was created correctly")) %>%
+      verify(if_else(is.na(ageasentered), type == "Total",
+                     type == "Adults (15+)" | type == "Children (<15)"),
+      error_fun = err_text(glue("Age Type Total has not been created correctly. 
+                                Please check the filter for type section in cumul_achv() in loom.R")),
+      description = glue("Verify that the Total category was created correctly")) %>%
       filter(type %in% .type)
 
   }}
