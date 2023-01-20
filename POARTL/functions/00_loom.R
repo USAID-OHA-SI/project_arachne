@@ -64,7 +64,8 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
   
   df_ou <- si_path() %>%
     return_latest(.path) %>%
-    read_msd()
+    read_msd() %>%
+    clean_agency()
   
   curr_pd <- as.character(source_info(si_path() %>% 
                                   return_latest("MER_Structured_Datasets_OU_IM"),
