@@ -1,6 +1,6 @@
 # PROJECT:  project_arachne
 # AUTHOR:   J.Hoehner | USAID
-# PURPOSE:  functions for the figures used for POART EDA
+# PURPOSE:  functions for the figures used for POARTL
 # REF ID:   cc2c736a
 # LICENSE:  MIT
 # DATE:     2022-12-1

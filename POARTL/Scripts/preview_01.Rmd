@@ -25,7 +25,7 @@ params:
 # library(assertthat)
 
 # Functions used
-# loom_funcs <- "POART_o_matic/functions/loom.R"
+# loom_funcs <- "POARTL/functions/loom.R"
 
 # # Example Parameters for debugging purposes
 # selected_ou <- "Angola"

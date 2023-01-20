@@ -31,10 +31,10 @@ params:
 # library(here)
 #
 # # Functions used
-# loom_funcs <- here("POART_o_matic/functions/00_loom.R")
+# loom_funcs <- here("POARTL/functions/00_loom.R")
 #
 # # get visual specific template
-# template <- list.files(path = here::here("POART_o_matic/templates"),
+# template <- list.files(path = here::here("POARTL/templates"),
 #                              full.names = TRUE,
 #                             pattern = "_01_")
 #
@@ -132,7 +132,7 @@ slide_complete <- ph_with(slide_template, slide_dml,
 
 ou_name <- as.character(df$operatingunit[1]) %>% str_replace(" ", "_")
 
-output_loc <- glue(here("POART_o_matic/Slides/Cumulative_Achievement_{ou_name}_{indicator}_{FY_min}_{FY_max}.pptx"))
+output_loc <- glue(here("POARTL/Slides/Cumulative_Achievement_{ou_name}_{indicator}_{FY_min}_{FY_max}.pptx"))
 
 print(slide_complete, target = output_loc)
 

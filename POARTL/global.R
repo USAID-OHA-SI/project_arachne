@@ -1,6 +1,6 @@
 # PROJECT:  project_arachne
 # AUTHOR:   J.Hoehner | USAID
-# PURPOSE:  Global Settings for POART-l app
+# PURPOSE:  Global Settings for POARTL app
 # REF ID:   3506c726
 # LICENSE:  MIT
 # DATE:     2023-01-18
@@ -28,17 +28,17 @@ inputs <- list(
 
   # list of templates
   templates = list(
-template_one = "POART-o-matic/templates/Temp_01_Cumul_Achievement.pptx",
-    template_two = "POART-o-matic/templates/Temp_02_Qtrly_Achievement.pptx",
-    template_three = "POART-o-matic/templates/Temp_03_Qtrly_IIT_RTT.pptx",
-    template_four = "POART-o-matic/templates/Temp_04_Qtrly_Patient_Delta.pptx"
+template_one = "POARTL/templates/Temp_01_Cumul_Achievement.pptx",
+    template_two = "POARTL/templates/Temp_02_Qtrly_Achievement.pptx",
+    template_three = "POARTL/templates/Temp_03_Qtrly_IIT_RTT.pptx",
+    template_four = "POARTL/templates/Temp_04_Qtrly_Patient_Delta.pptx"
   ),
 
   # list of functions used by app
   functions = list(
-    clean = "POART-o-matic/functions/00_loom.R",
-    preview_rmd = "POART-o-matic/functions/preview_01.Rmd",
-    generate_rmd = "POART-o-matic/functions/generate_01.rmd"
+    clean = "POARTL/functions/00_loom.R",
+    preview_rmd = "POARTL/functions/preview_01.Rmd",
+    generate_rmd = "POARTL/functions/generate_01.rmd"
   )
 )
 

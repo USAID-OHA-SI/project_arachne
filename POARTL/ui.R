@@ -1,6 +1,6 @@
 # PROJECT:  project_arachne
 # AUTHOR:   J.Hoehner | USAID
-# PURPOSE:  UI settings for POART-l app
+# PURPOSE:  UI settings for POARTL app
 # REF ID:   092f65b1
 # LICENSE:  MIT
 # DATE:     2023-01-18
@@ -15,7 +15,7 @@ dashboardPage(
   dashboardHeader(disable = TRUE),
   # Sidebar ----
   shinydashboardPlus::dashboardSidebar(
-    glue("POART-al: Exploratory analysis for POART presentations"),
+    glue("POARTL: Exploratory analysis for POART presentations"),
     width = 400,
     # Menu --------
     sidebarMenu(
@@ -105,7 +105,7 @@ dashboardPage(
               For questions about or suggestions for this application 
               please contact sisupport@usaid.gov"),
       # "About the Application"
-      title = "POART-l: Start Here",
+      title = "POARTL: Start Here",
       footer = glue("Developer/Maintainer: Jessica Hoehner, 
                      Contributers: Aaron Chafetz"),
       collapsible = TRUE),

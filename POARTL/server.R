@@ -1,6 +1,6 @@
 # PROJECT:  project_arachne
 # AUTHOR:   J.Hoehner | USAID
-# PURPOSE:  Server settings for POART-l
+# PURPOSE:  Server settings for POARTL
 # REF ID:   2ecb28be
 # LICENSE:  MIT
 # DATE:     2023-01-18
@@ -31,7 +31,7 @@ function(input, output, session) {
 
     # establish the input and output files...
     dict <- list(
-      in_file = here::here("POART_o_matic/Scripts/preview_01.Rmd"),
+      in_file = here::here("POARTL/Scripts/preview_01.Rmd"),
       out_file = "preview_01.html")
 
     # and output the plots requested in the app.
@@ -71,7 +71,7 @@ function(input, output, session) {
 
     # and generate the requested slide
     rmarkdown::render(
-      input = here::here("POART_o_matic/Scripts/generate_01.Rmd"),
+      input = here::here("POARTL/Scripts/generate_01.Rmd"),
       params = param_list,
       quiet = FALSE)})
   } # end generate loop
