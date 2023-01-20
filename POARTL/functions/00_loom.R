@@ -37,8 +37,7 @@ calculate_plhiv <- function(.nat_subnat_df) {
   df_nat <- .nat_subnat_df %>%
     filter(
       indicator %in% c("TX_CURR_SUBNAT", "PLHIV"),
-      standardizeddisaggregate == "Age/Sex/HIVStatus"
-    ) %>%
+      standardizeddisaggregate == "Age/Sex/HIVStatus") %>%
     group_by(fiscal_year, indicator) %>%
     summarise(across(targets, sum, na.rm = TRUE)) %>%
     pivot_wider(names_from = indicator, values_from = targets) %>%
@@ -63,13 +62,12 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
   # reference id for this figure
   ref_id <- "4c86a407"
   
-  
   df_ou <- si_path() %>%
     return_latest(.path) %>%
     read_msd()
   
   curr_pd <- as.character(source_info(si_path() %>% 
-                                        return_latest("MER_Structured_Datasets_OU_IM"),
+                                  return_latest("MER_Structured_Datasets_OU_IM"),
                          return = "period"))
   
   # Validating the assumption that the current fiscal year label 
@@ -79,7 +77,7 @@ ou_achv_cumul <- function(.path, .indicator, .ou,
           Please check the cumul_achv function and the MSD you are reading in."))
   
   curr_fy_lab <- as.character(source_info(si_path() %>%
-                                            return_latest("MER_Structured_Datasets_OU_IM"),
+                                return_latest("MER_Structured_Datasets_OU_IM"),
             return = "fiscal_year_label"))
   
   # Validating the assumption that the current fiscal year label 
