@@ -1,6 +1,6 @@
 # PROJECT:  project_arachne
 # AUTHOR:   J.Hoehner | USAID
-# PURPOSE:  functions for the figures used for POART EDA
+# PURPOSE:  functions for the figures used for POARTL
 # REF ID:   cc2c736a
 # LICENSE:  MIT
 # DATE:     2022-12-1
@@ -18,8 +18,16 @@ library(scales)
 library(stringr)
 library(janitor)
 library(ggtext)
+library(tidytext)
+library(assertthat)
+library(assertr)
 
 # Functions --------------------------------------------------------------------
+
+# Helper function for assertr::verify() to throw more descriptive error messages
+# when used in a data analysis pipeline
+# Hi JF!
+err_text <- function(msg) stop(msg, call = FALSE)
 
 # Calculate PLHIV in a given OU, returns a data frame containing OU level
 # TX_CURR_SUBNAT and an associated label, PLHIV and an associated label,
@@ -30,7 +38,6 @@ calculate_plhiv <- function(.nat_subnat_df) {
     filter(
       indicator %in% c("TX_CURR_SUBNAT", "PLHIV"),
       standardizeddisaggregate == "Age/Sex/HIVStatus") %>%
-    resolve_knownissues() %>%
     group_by(fiscal_year, indicator) %>%
     summarise(across(targets, sum, na.rm = TRUE)) %>%
     pivot_wider(names_from = indicator, values_from = targets) %>%
@@ -49,39 +56,58 @@ calculate_plhiv <- function(.nat_subnat_df) {
 
 # Summarizes cumulative quarterly progress on selected indicators
 
-ou_achv_cumul <- function(.path, .indicator, .ou, .fiscal_year, .type, 
-                          .subtitle, .funding_agency = NULL, ...) {
+ou_achv_cumul <- function(.path, .indicator, .ou, 
+                          .type, .title, .funding_agency, ...) {
   
-  df <- si_path() %>%
+  # reference id for this figure
+  ref_id <- "4c86a407"
+  
+  df_ou <- si_path() %>%
     return_latest(.path) %>%
-    read_msd()
+    read_msd() %>%
+    clean_agency()
   
-  # this seems to only work interactively and I wasn't able to use 
-  # the returned metadata object within the function
+  curr_pd <- as.character(source_info(si_path() %>% 
+                                  return_latest("MER_Structured_Datasets_OU_IM"),
+                         return = "period"))
   
-   # si_path() %>%
-   #    return_latest(.path) %>%
-   #    get_metadata()
- 
-  curr_pd <- source_info(si_path() %>% return_latest("MER_Structured_Datasets_OU_IM"),
-              return = "period")
+  # Validating the assumption that the current fiscal year label 
+  # matches the format we expect
+  validate_that(str_detect(curr_pd, "FY[1-2][0-9]Q[1-4]"), 
+                msg = glue("Error in reading the current period from the input MSD. 
+          Please check the cumul_achv function and the MSD you are reading in."))
   
-  qtrs_to_keep <- metadata$curr_pd %>%
+  curr_fy_lab <- as.character(source_info(si_path() %>%
+                                return_latest("MER_Structured_Datasets_OU_IM"),
+            return = "fiscal_year_label"))
+  
+  # Validating the assumption that the current fiscal year label 
+  # matches the format we expect
+  validate_that(str_detect(curr_fy_lab, "FY[1-2][0-9]"), 
+                msg = glue("Error in reading the current fiscla year from the input MSD. 
+          Please check the cumul_achv function and the MSD you are reading in."))
+  
+  qtrs_to_keep <- curr_pd %>%
     convert_qtr_to_date() %>%
     seq.Date(by = "-3 months", length = 6) %>%
     convert_date_to_qtr()
   
-  # filter for type, Total or Adults/Children
-  if (.type == "Total") {
-    
-  df <- df %>%
-    filter(
-      indicator %in% .indicator,
-      operatingunit == .ou,
-      fiscal_year %in% .fiscal_year) %>%
-    resolve_knownissues() %>%
-    pluck_totals()}
+  # Validating the assumption that we are only keeping the last 6 qtrs
+  validate_that(str_length(qtrs_to_keep)[1] == 6, 
+                msg = "Error in retaining the expected number of quarters. 
+          Please check the cumul_achv function and the MSD you are reading in.")
   
+  # filter for type, Total or Adults/Children
+  {if (.type == "Total") {
+    
+    df_ou <- df_ou %>%
+      filter(
+        indicator %in% .indicator,
+        operatingunit == .ou) %>%
+      resolve_knownissues() %>%
+      pluck_totals()
+  
+  }
   else {
     
     peds <- c("<01", "01-04", "05-09", "10-14")
@@ -89,38 +115,72 @@ ou_achv_cumul <- function(.path, .indicator, .ou, .fiscal_year, .type,
       "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49",
       "50-54", "55-59", "60-64", "65+")
     
-    df <- df %>%
+    df_ou <- df_ou %>%
       filter(
         indicator %in% .indicator,
-        operatingunit == .ou,
-        fiscal_year %in% .fiscal_year, 
+        operatingunit %in% .ou,
         (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% peds) |
-        (standardizeddisaggregate == "Total Numerator") |
+          (standardizeddisaggregate == "Total Numerator") |
           (standardizeddisaggregate == "Age/Sex/HIVStatus" & ageasentered %in% adults)) %>%
       resolve_knownissues() %>%
-  mutate(type = case_when(
-    standardizeddisaggregate == "Total Numerator" ~ "Total",
-    standardizeddisaggregate == "Age/Sex/HIVStatus" &
-      ageasentered %in% adults ~ "Adults",
-    standardizeddisaggregate == "Age/Sex/HIVStatus" &
-      ageasentered %in% peds ~ "Pediatric")) %>%
-  filter(type %in% c("Total", .type))
+      mutate(type = case_when(
+        standardizeddisaggregate == "Total Numerator" ~ "Total",
+        standardizeddisaggregate == "Age/Sex/HIVStatus" &
+          ageasentered %in% adults ~ "Adults (15+)",
+        standardizeddisaggregate == "Age/Sex/HIVStatus" &
+          ageasentered %in% peds ~ "Children (<15)")) %>%
+      # verify the assumption that the categories were created correctly
+      verify(if_else(ageasentered %in% peds, type == "Children (<15)",
+                     type == "Total" | type == "Adults (15+)"),
+      error_fun = err_text(glue("Age Type Children (<15) has not been created correctly. 
+                                Please check the filter for type section in cumul_achv() in loom.R")),
+      description = glue("Verify that the Child category was created correctly")) %>%
+      verify(if_else(ageasentered %in% adults, type == "Adults (15+)",
+                     type == "Total" | type == "Children (<15)"),
+      error_fun = err_text(glue("Age Type Adults (15+) has not been created correctly. 
+                                Please check the filter for type section in cumul_achv() in loom.R")),
+      description = glue("Verify that the Adult category was created correctly")) %>%
+      verify(if_else(is.na(ageasentered), type == "Total",
+                     type == "Adults (15+)" | type == "Children (<15)"),
+      error_fun = err_text(glue("Age Type Total has not been created correctly. 
+                                Please check the filter for type section in cumul_achv() in loom.R")),
+      description = glue("Verify that the Total category was created correctly")) %>%
+      filter(type %in% .type)
+
+  }}
+  
+  if ((.funding_agency != as.character("All") & 
+       (as.character(.funding_agency) %in% df_ou$funding_agency) == TRUE)) {
+    
+    # list of all expected agencies even though user currently only has 
+    # option to filter for USAID, DOD, PC, or CDC
+    expected_agencies <- c("USAID", "DOD", "HHS/CDC", "CDC", "STATE", 
+                           "HRSA", "DEFAULT", "DEDUP", "PC")
+    
+    df_ou <- df_ou %>%
+      verify(as.character(.funding_agency) %in% expected_agencies,
+             error_fun = err_text(glue(
+             "Error: Unexpected funding agency input. 
+              To include this funding agency in expected inputs, 
+             please add it to the expected_agencies object in the 
+             funding agency filter section in cumul_achv() in loom.R")),
+             description = glue("Verify that selected agency is a valid input")) %>%
+    filter(funding_agency == as.character(.funding_agency))
+    
+        # Example of a unit test with a custom, informative error message
+    assert_that(
+      ((.funding_agency != as.character("All") & 
+      as.character(.funding_agency) %in% df_ou$funding_agency == TRUE)), 
+      msg = "This funding agency is not available for this combination of inputs.")
     
   }
-  
-  # filter for agency 
-  
-  if (!is.null(.funding_agency)) {
-    df <- df %>%
-      filter(funding_agency == .funding_agency)
-  }
-
-  df_new <- df %>%
+ 
+    df_final <- df_ou %>%
     resolve_knownissues() %>%
     group_by(operatingunit, indicator, fiscal_year) %>%
     summarise(across(c(starts_with("qtr"), cumulative, targets),
-      sum,
-      na.rm = TRUE), .groups = "keep") %>%
+                     sum,
+                     na.rm = TRUE), .groups = "keep") %>%
     reshape_msd(direction = "quarters") %>%
     adorn_achievement() %>%
     arrange(period) %>%
@@ -129,47 +189,42 @@ ou_achv_cumul <- function(.path, .indicator, .ou, .fiscal_year, .type,
       qtr_target = targets / ((4 - period_num) + 1),
       fiscal_year2 = str_extract(period, "FY[1-2][0-9]"),
       results_lab = case_when(period == curr_pd |
-        fiscal_year2 == curr_fy_lab ~
-        glue("{comma(results_cumulative)}")),
+                                fiscal_year2 == curr_fy_lab ~
+                                glue("{comma(results_cumulative)}")),
       achv_pct_label = case_when(period == curr_pd |
-        fiscal_year2 == curr_fy_lab ~
-        glue("{percent(achievement_qtrly)}")),
-      ind_period = str_c(indicator, period, sep = "_")
-    ) %>%
+                                   fiscal_year2 == curr_fy_lab ~
+                                   glue("{percent(achievement_qtrly)}")),
+      ind_period = str_c(indicator, period, sep = "_")) %>%
     filter(period %in% qtrs_to_keep)
-
-  df_new %>%
+    
+  
+  df_final %>%
     ggplot(aes(x = period)) +
     geom_col(aes(y = qtr_target),
-      alpha = .7, fill = usaid_lightgrey,
-      position = position_dodge(width = .65)
-    ) +
+             alpha = .7, fill = usaid_lightgrey,
+             position = position_dodge(width = .65)) +
     geom_col(aes(y = results_cumulative),
-      alpha = .7, fill = usaid_medgrey,
-      position = position_dodge(width = .65)
-    ) +
+             alpha = .7, fill = scooter_med,
+             position = position_dodge(width = .65)) +
     geom_text(aes(label = achv_pct_label, y = 0),
-      position = position_dodge(width = 0.75), color = "#FFFFFF",
-      family = "Source Sans Pro", size = 12 / .pt,
-      vjust = -.5, na.rm = TRUE
-    ) +
+              position = position_dodge(width = 0.75), color = "#FFFFFF",
+              family = "Source Sans Pro", size = 12 / .pt,
+              vjust = -.5, na.rm = TRUE) +
     geom_text(aes(label = results_lab, y = results_cumulative),
-      position = position_dodge(width = 0.75), color = usaid_medgrey,
-      family = "Source Sans Pro", size = 12 / .pt,
-      vjust = -.5, na.rm = TRUE
-    ) +
-    scale_x_discrete(breaks = unique(df_new$period)[grep("Q(2|4)", unique(df_new$period))]) +
+              position = position_dodge(width = 0.75), color = scooter_med,
+              family = "Source Sans Pro", size = 12 / .pt,
+              vjust = -.5, na.rm = TRUE) +
+    scale_x_discrete(breaks = unique(df_final$period)[grep("Q(2|4)", unique(df_final$period))]) +
     # how to dynamically add just a little excess to the
     # max. value to accommodate the geom_text?
     scale_y_continuous(
-      limits = c(0, max(df_new$qtr_target) + 5000),
-      label = label_number(scale_cut = cut_short_scale())
-    ) +
+      limits = c(0, max(df_final$qtr_target) + 5000),
+      label = label_number(scale_cut = cut_short_scale())) +
     labs(
       x = NULL, y = NULL, fill = NULL,
-      subtitle = glue("{.subtitle}"),
-      caption = glue("Source: {curr_pd} MSD | Ref id: {ref_id} | US Agency for International Development")
-    ) +
+      title = glue("{.title}"),
+      # subtitle = glue(""),
+      caption = glue("Source: {curr_pd} MSD | Ref id: {ref_id} | US Agency for International Development")) +
     si_style_yline() +
     theme(
       panel.spacing = unit(.5, "line"),
@@ -177,9 +232,10 @@ ou_achv_cumul <- function(.path, .indicator, .ou, .fiscal_year, .type,
       plot.title = element_markdown(),
       strip.text = element_markdown()
     )
-  }
-  
-# Summarizes quarterly progress on selected indicators
+
+}
+ 
+ # Summarizes quarterly progress on selected indicators
 
 ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
                         .funding_agency = NULL, ...) {
@@ -196,7 +252,8 @@ ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
   if (!is.null(.funding_agency)) {
     .df <- .df %>%
       filter(
-        funding_agency == .funding_agency)
+        funding_agency == .funding_agency
+      )
   }
 
   df_new <- .df %>%
@@ -212,7 +269,6 @@ ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
                             standardizeddisaggregate == "Age/Sex/HIVStatus" & 
                             ageasentered %in% peds ~ "Pediatric")) %>%
     filter(type == .type) %>%
-    resolve_knownissues() %>%
     group_by(fiscal_year, operatingunit, indicator, type) %>%
     summarise(across(c(targets, starts_with("qtr")), sum, na.rm = TRUE),
       .groups = "drop"
@@ -225,19 +281,22 @@ ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
     mutate(
       growth_rate_req =
         case_when(period == metadata$curr_pd ~
-          ((targets / results)^(1 / (4 - metadata$curr_qtr))) - 1)) %>%
+          ((targets / results)^(1 / (4 - metadata$curr_qtr))) - 1)
+    ) %>%
     group_by(type) %>%
     fill(growth_rate_req, .direction = "updown") %>%
     mutate(
       growth_rate = (results / lag(results, order_by = period)) - 1,
-      growth_rate = na_if(growth_rate, Inf)) %>%
+      growth_rate = na_if(growth_rate, Inf)
+    ) %>%
     ungroup() %>%
     mutate(
       geo_gr_lab = case_when(
         is.infinite(growth_rate_req) ~ glue("{toupper(operatingunit)}"),
         growth_rate_req < 0 ~ glue("{toupper(operatingunit)}\nTarget achieved"),
         growth_rate_req < .1 ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}"),
-        TRUE ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}")),
+        TRUE ~ glue("{toupper(operatingunit)}\n{percent(growth_rate_req, 1)}")
+      ),
       gr_lab = case_when(fiscal_year == metadata$curr_fy ~
         glue("{percent(growth_rate, 1)}")),
       gr_lab = stringr::str_replace(gr_lab, "NA", "0"),
@@ -247,7 +306,8 @@ ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
       disp_targets = case_when(fiscal_year == metadata$curr_fy ~ targets),
       unit_label = glue("(Operating Unit)"),
       amount_diff = targets - results,
-      pct_change = round_half_up((results - targets) / abs(targets) * 100), 0)
+      pct_change = round_half_up((results - targets) / abs(targets) * 100), 0
+    )
 
   # percentage change from q1 to q4
   pct_change_new <- df_new %>%
@@ -262,27 +322,32 @@ ou_achv_qtr <- function(.path, .df, .indicator, .ou, .type, .subtitle,
     geom_col(na.rm = TRUE, alpha = .7, width = 1) +
     geom_text(aes(label = results_lab, y = results),
       family = "Source Sans Pro", color = usaid_darkgrey, size = 9 / .pt,
-      vjust = -.5, na.rm = TRUE) +
+      vjust = -.5, na.rm = TRUE
+    ) +
     geom_text(aes(label = gr_lab, y = gr_label_position),
       family = "Source Sans Pro", color = "white", size = 9 / .pt,
-      vjust = -.5, na.rm = TRUE) +
+      vjust = -.5, na.rm = TRUE
+    ) +
     scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
     scale_x_discrete(breaks = unique(df_new$period)[grep("Q(4)", unique(df_new$period))]) +
     scale_fill_manual(values = c(
       usaid_lightgrey, usaid_lightgrey, usaid_lightgrey, usaid_lightgrey,
       usaid_lightgrey, usaid_lightgrey, usaid_lightgrey, usaid_lightgrey,
-      usaid_darkgrey, usaid_darkgrey, usaid_darkgrey, usaid_darkgrey)) +
+      usaid_darkgrey, usaid_darkgrey, usaid_darkgrey, usaid_darkgrey
+    )) +
     labs(
       x = NULL, y = NULL,
       title = NULL,
       subtitle = glue("{.subtitle}"),
       caption = glue("Note: Adults = Ages 15+ and Children= Ages <15
-                     {metadata$caption} | US Agency for International Development")) +
+                     {metadata$caption} | US Agency for International Development")
+    ) +
     si_style_ygrid() +
     theme(
       legend.position = "none",
       panel.spacing = unit(.5, "picas"),
-      axis.text.x = element_text(size = 8))
+      axis.text.x = element_text(size = 8)
+    )
 }
 
 # Summarizes patient gain/loss quarterly trend
@@ -306,7 +371,6 @@ ou_patient_delta <- function(.path, .df, .ou, .fiscal_year, .type, .subtitle,
         indicator %in% c("TX_NEW", "TX_NET_NEW"),
         operatingunit == .ou,
         fiscal_year %in% .fiscal_year) %>%
-      resolve_knownissues() %>%
       pluck_totals()
     
   } else {
@@ -328,8 +392,7 @@ ou_patient_delta <- function(.path, .df, .ou, .fiscal_year, .type, .subtitle,
           ageasentered %in% adults ~ "Adults",
         standardizeddisaggregate == "Age/Sex/HIVStatus" &
           ageasentered %in% peds ~ "Pediatric")) %>%
-      filter(type == .type)%>%
-      resolve_knownissues()
+      filter(type == .type)
   }
 
   # filter for funding agency
@@ -340,7 +403,6 @@ ou_patient_delta <- function(.path, .df, .ou, .fiscal_year, .type, .subtitle,
 
   .df %>%
     clean_indicator() %>%
-    resolve_knownissues() %>%
     group_by(operatingunit, fiscal_year, indicator) %>%
     summarise(across(starts_with("qtr"), sum, na.rm = TRUE), .groups = "drop") %>%
     reshape_msd(include_type = FALSE) %>%
@@ -415,8 +477,7 @@ ou_iit_rtt_trend <- function(.path, .df, .ou, .fiscal_year,.type,
       filter(
         standardizeddisaggregate == "Total Numerator" |
         (standardizeddisaggregate == "Age/Sex/ARTNoContactReason/HIVStatus" &
-           indicator == "TX_ML")) %>%
-      resolve_knownissues()
+           indicator == "TX_ML"))
     
     
   } 
@@ -448,18 +509,18 @@ ou_iit_rtt_trend <- function(.path, .df, .ou, .fiscal_year,.type,
             ageasentered %in% adults ~ "Adults",
           standardizeddisaggregate == "Age/Sex/ARTNoContactReason/HIVStatus" &
             ageasentered %in% peds ~ "Pediatric")) %>%
-      filter(type %in% c("Total", glue("{.type}"))) %>%
-      resolve_knownissues()
+      filter(type %in% c("Total", glue("{.type}")))
   }
   
   if (!is.null(.funding_agency)) {
     .df <- .df %>%
       filter(funding_agency == .funding_agency)
+    
+    # how can we dynamically title the agency specific graphs?
   }
 
   df_iit <- .df %>%
     clean_indicator() %>%
-    resolve_knownissues() %>%
     group_by(operatingunit, fiscal_year, indicator) %>%
     mutate(
       indicator = if_else(

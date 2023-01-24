@@ -23,30 +23,30 @@ params:
 # library(tidytext)
 # library(janitor)
 # library(assertthat)
-
-# Functions used
+# 
+# # Functions used
 # loom_funcs <- "POARTL/functions/loom.R"
-
-# # Example Parameters for debugging purposes
+# 
+# # # Example Parameters for debugging purposes
 # selected_ou <- "Angola"
 # selected_indicator <- "TX_CURR"
 # selected_agency <- "USAID"
 # selected_type <- "Total"
-
+# 
 # si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM")
-
-# This assumes the user has their MSD path setup correctly and that they have
-# at least one OU by IM file in that folder, this can be generalized
-# to use different datasets but it works at the highest level of detail MSD
-
+# 
+# # This assumes the user has their MSD path setup correctly and that they have
+# # at least one OU by IM file in that folder, this can be generalized
+# # to use different datasets but it works at the highest level of detail MSD
+# 
 # df_ou <- si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM") %>%
 #   read_msd()
-
-# this seems to only work interactively since I wasn't able to use
-# the returned metadata object within the function when it was called from the app
-# metadata
+# 
+# # this seems to only work interactively since I wasn't able to use
+# # the returned metadata object within the function when it was called from the app
+# # metadata
 # si_path() %>%
 #   return_latest("MER_Structured_Datasets_OU_IM") %>%
 #   get_metadata()
